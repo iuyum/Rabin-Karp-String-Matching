@@ -1,0 +1,1595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Rabin-Karp Visualizer — BCS 309</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+/* ═══ TOKENS ═══════════════════════════════════════════════════════ */
+:root{
+  --bg:#f4f0ea;
+  --panel:#ece7e0;
+  --surface:#ffffff;
+  --surface2:#faf7f3;
+  --border:#ddd5c6;
+  --border-soft:#e8e1d8;
+  --rose:#b83c58;
+  --rose-soft:#c85870;
+  --rose-dim:#8a2c40;
+  --rose-glow:rgba(184,60,88,0.13);
+  --rose-faint:rgba(184,60,88,0.06);
+  --text:#1c1814;
+  --text-mid:#48403a;
+  --text-dim:#786860;
+  --text-ghost:#a89888;
+  --green:#1a6e42;
+  --green-bg:rgba(26,110,66,0.08);
+  --yellow:#7a5808;
+  --yellow-bg:rgba(122,88,8,0.08);
+  --purple:#5030a0;
+  --purple-bg:rgba(80,48,160,0.08);
+  --blue:#1a52a0;
+  --blue-bg:rgba(26,82,160,0.08);
+  --red:#a83020;
+  --red-bg:rgba(168,48,32,0.08);
+  --mono:'DM Mono',monospace;
+  --serif:'Playfair Display',Georgia,serif;
+  --sans:'DM Sans',system-ui,sans-serif;
+  --r:8px;
+  --tr:160ms ease;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;font-size:15px}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.65;min-height:100vh;overflow-x:hidden}
+
+/* ═══ TOPBAR ════════════════════════════════════════════════════════ */
+.topbar{
+  background:var(--panel);border-bottom:1px solid var(--border-soft);
+  padding:0 1.4rem;height:48px;display:flex;align-items:center;
+  justify-content:space-between;position:sticky;top:0;z-index:200;
+  box-shadow:0 2px 8px rgba(0,0,0,0.10);
+}
+.tb-brand{font-family:var(--mono);font-size:11.5px;color:var(--text-mid);letter-spacing:0.04em;}
+.tb-brand strong{color:var(--rose);}
+.tb-links{display:flex;gap:1.2rem;}
+.tb-links a{font-size:11px;color:var(--text-dim);text-decoration:none;letter-spacing:0.03em;font-family:var(--mono);transition:color var(--tr);}
+.tb-links a:hover{color:var(--rose-soft);}
+
+/* ═══ HERO ══════════════════════════════════════════════════════════ */
+.hero{
+  background:linear-gradient(135deg,#ece7e0 0%,#f0e8de 60%,#f4f0ea 100%);
+  border-bottom:1px solid var(--border-soft);
+  padding:2.4rem 1.6rem 2rem;
+  position:relative;overflow:hidden;
+}
+.hero::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse 70% 80% at 30% 50%,rgba(184,60,88,0.03),transparent 70%);
+  pointer-events:none;
+}
+.hero-inner{max-width:980px;margin:0 auto;}
+.hero-tag{font-family:var(--mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--rose);margin-bottom:0.7rem;}
+.hero h1{font-family:var(--serif);font-size:clamp(1.8rem,4vw,2.8rem);font-weight:900;line-height:1.1;color:var(--text);margin-bottom:0.7rem;}
+.hero h1 em{font-style:italic;color:var(--rose);}
+.hero-sub{font-size:13.5px;color:var(--text-mid);max-width:560px;line-height:1.7;}
+.hero-intro{margin-top:1rem;max-width:760px;background:rgba(184,60,88,0.04);border:1px solid rgba(184,60,88,0.12);border-radius:var(--r);padding:1rem 1.2rem;display:flex;flex-direction:column;gap:0.6rem;}
+.hero-intro-text{font-size:13px;color:var(--text-mid);line-height:1.78;margin:0;}
+.hero-intro-text strong{color:var(--text);}
+.hero-intro-text em{color:var(--rose-soft);font-style:italic;}
+
+/* ═══ MAIN LAYOUT ═══════════════════════════════════════════════════ */
+.main-layout{
+  display:grid;
+  grid-template-columns:420px 1fr;
+  max-width:1200px;margin:0 auto;
+  min-height:calc(100vh - 48px);
+}
+@media(max-width:980px){
+  .main-layout{grid-template-columns:1fr;}
+  .col-left{border-right:none!important;border-bottom:1px solid var(--border-soft);}
+}
+.col-left{
+  border-right:1px solid var(--border-soft);
+  padding:1.4rem;
+  background:var(--panel);
+}
+@media(max-width:980px){
+  .col-left{position:static;height:auto;}
+}
+.col-right{padding:1.4rem;overflow-y:auto;}
+
+/* ═══ SHARED COMPONENTS ═════════════════════════════════════════════ */
+.sec-label{font-family:var(--mono);font-size:9.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--rose);margin-bottom:0.4rem;}
+.sec-title{font-family:var(--serif);font-size:1.25rem;font-weight:700;color:var(--text);margin-bottom:0.8rem;line-height:1.2;}
+.divider{border:none;border-top:1px solid var(--border-soft);margin:1.2rem 0;}
+
+/* field */
+.field{margin-bottom:0.8rem;}
+.field label{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-dim);margin-bottom:4px;}
+.field input,.field select{
+  width:100%;background:var(--surface);border:1px solid var(--border-soft);border-radius:6px;
+  padding:8px 10px;font-family:var(--mono);font-size:12.5px;color:var(--text);
+  outline:none;transition:border-color var(--tr),box-shadow var(--tr);
+}
+.field input:focus,.field select:focus{border-color:var(--rose);box-shadow:0 0 0 2px var(--rose-glow);}
+.field select option{background:var(--surface);}
+
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;}
+
+/* presets */
+.preset-row{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:0.8rem;}
+.pbtn{background:var(--surface);border:1px solid var(--border-soft);border-radius:5px;padding:5px 10px;font-family:var(--mono);font-size:10.5px;color:var(--text-mid);cursor:pointer;transition:all var(--tr);}
+.pbtn:hover{border-color:var(--rose);color:var(--rose);background:var(--rose-faint);}
+
+/* speed */
+.speed-row{display:flex;align-items:center;gap:8px;margin-bottom:0.8rem;}
+.speed-row label{font-family:var(--mono);font-size:9.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);white-space:nowrap;}
+#speedSlider{flex:1;accent-color:var(--rose);cursor:pointer;}
+#speedVal{font-family:var(--mono);font-size:11.5px;color:var(--rose);min-width:34px;}
+
+/* action btns */
+.action-row{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:0.8rem;}
+.abtn{display:inline-flex;align-items:center;gap:4px;padding:7px 14px;border-radius:6px;border:none;font-family:var(--sans);font-size:12px;font-weight:500;cursor:pointer;transition:all var(--tr);white-space:nowrap;}
+.abtn-primary{background:var(--rose);color:#fff;}
+.abtn-primary:hover{background:#f07090;transform:translateY(-1px);}
+.abtn-outline{background:transparent;border:1px solid var(--border);color:var(--text-mid);}
+.abtn-outline:hover{border-color:var(--rose);color:var(--rose);}
+.abtn-ghost{background:var(--surface);border:1px solid transparent;color:var(--text-dim);}
+.abtn-ghost:hover{border-color:var(--border);color:var(--text-mid);}
+.abtn:disabled{opacity:.3;cursor:not-allowed;transform:none!important;}
+
+/* status bar */
+.status-bar{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:0.8rem;}
+.sb-chip{flex:1;min-width:70px;background:var(--surface);border:1px solid var(--border-soft);border-radius:6px;padding:6px 8px;display:flex;flex-direction:column;gap:2px;}
+.sb-lbl{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-ghost);}
+.sb-val{font-family:var(--mono);font-size:0.95rem;font-weight:500;color:var(--rose);}
+.sb-val.g{color:var(--green);}
+.sb-val.y{color:var(--yellow);}
+.sb-val.p{color:var(--purple);}
+
+/* ═══ PSEUDOCODE ════════════════════════════════════════════════════ */
+.pseudo-wrap{background:#1e1e2e;border:1px solid var(--border-soft);border-radius:var(--r);overflow:hidden;margin-bottom:0.8rem;}
+.pseudo-head{background:var(--surface);padding:6px 12px;font-family:var(--mono);font-size:9.5px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-dim);border-bottom:1px solid var(--border-soft);}
+.pseudo-body{padding:4px 0;max-height:220px;overflow-y:auto;}
+.pline{display:flex;gap:8px;padding:2px 12px;font-family:var(--mono);font-size:12px;line-height:1.7;color:var(--text-dim);cursor:default;transition:background var(--tr),color var(--tr);position:relative;}
+.pline:hover{background:var(--surface);}
+.pline.active{background:rgba(224,88,120,0.12);color:var(--text);border-left:2px solid var(--rose);padding-left:10px;}
+.pline .ln{min-width:18px;text-align:right;flex-shrink:0;color:var(--text-ghost);font-size:10.5px;}
+.pline .code{flex:1;}
+.pk{color:#f090a8;}.pf{color:#208040;}.pv{color:#2080d0;}.pn{color:#c0a0e8;}.pc{color:#5a3040;font-style:italic;}
+/* tooltip */
+.pline .tooltip{
+  display:none;position:absolute;left:100%;top:50%;transform:translateY(-50%);
+  background:var(--surface2);border:1px solid var(--border);border-radius:6px;
+  padding:6px 10px;font-size:11.5px;color:var(--text-mid);white-space:nowrap;
+  z-index:300;max-width:260px;white-space:normal;box-shadow:0 4px 16px rgba(0,0,0,0.5);
+  pointer-events:none;margin-left:8px;
+}
+.pline:hover .tooltip{display:block;}
+@media(max-width:980px){.pline .tooltip{left:auto;right:0;top:100%;transform:none;margin-left:0;margin-top:4px;}}
+
+/* ═══ EXPLAIN ═══════════════════════════════════════════════════════ */
+.explain-box{
+  background:var(--surface);border:1px solid rgba(184,60,88,0.18);border-radius:var(--r);
+  padding:10px 12px;min-height:48px;font-size:13px;color:var(--text-mid);line-height:1.7;
+  margin-bottom:0.8rem;
+}
+.explain-box strong{color:var(--rose-soft);}
+.ew-match{color:var(--green);font-weight:600;}
+.ew-spurious{color:var(--yellow);font-weight:600;}
+.ew-miss{color:var(--red);font-weight:600;}
+.ew-hash{color:var(--purple);font-weight:600;}
+
+/* ═══ VISUALIZATION AREA ═════════════════════════════════════════════ */
+.viz-section{margin-bottom:1rem;}
+.viz-label{font-family:var(--mono);font-size:9.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:5px;}
+
+/* character tape */
+.tape{
+  display:flex;flex-wrap:wrap;gap:3px;
+  padding:10px 12px;background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--r);
+  min-height:58px;align-items:flex-end;
+}
+.tc{display:flex;flex-direction:column;align-items:center;gap:2px;}
+.tc-idx{font-family:var(--mono);font-size:8.5px;color:var(--text-ghost);}
+.tc-hash{font-family:var(--mono);font-size:7.5px;color:var(--purple);height:10px;line-height:10px;text-align:center;}
+.tc-box{
+  width:30px;height:30px;display:flex;align-items:center;justify-content:center;
+  border-radius:5px;border:1px solid var(--border-soft);background:var(--surface2);
+  font-family:var(--mono);font-size:14px;font-weight:500;color:var(--text);
+  transition:all 180ms ease;
+}
+.tc-box.s-normal  {background:#ffffff;border-color:var(--border);color:var(--text);}
+.tc-box.s-window  {background:rgba(96,168,224,0.12);border-color:var(--blue);color:var(--blue);}
+.tc-box.s-hash-hit{background:var(--purple-bg);border-color:var(--purple);color:var(--purple);}
+.tc-box.s-match   {background:var(--green-bg);border-color:var(--green);color:var(--green);}
+.tc-box.s-spurious{background:var(--yellow-bg);border-color:var(--yellow);color:var(--yellow);}
+.tc-box.s-miss    {background:var(--red-bg);border-color:var(--red);color:var(--red);}
+.tc-box.s-active  {background:var(--rose-faint);border-color:var(--rose);color:var(--rose);box-shadow:0 0 0 2px var(--rose-glow);}
+
+/* hash meter */
+.hash-meter{
+  display:flex;align-items:stretch;gap:0;
+  background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--r);
+  overflow:hidden;margin-bottom:0.8rem;
+}
+.hm-cell{padding:8px 14px;display:flex;flex-direction:column;gap:2px;flex:1;}
+.hm-div{width:1px;background:var(--border-soft);flex-shrink:0;}
+.hm-lbl{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-ghost);}
+.hm-val{font-family:var(--mono);font-size:1rem;font-weight:500;}
+.hm-pat{color:var(--purple);}
+.hm-win{color:var(--rose-soft);}
+.hm-eq-yes{color:var(--green);}
+.hm-eq-no{color:var(--red);}
+.hm-formula{font-family:var(--mono);font-size:10.5px;color:var(--text-dim);word-break:break-all;align-self:center;}
+
+/* legend */
+.legend{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:0.8rem;}
+.lg{display:flex;align-items:center;gap:4px;}
+.lg-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0;}
+.lg span{font-size:10.5px;color:var(--text-dim);}
+
+/* ═══ HISTORY TABLE ═════════════════════════════════════════════════ */
+.hist-wrap{background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--r);overflow:hidden;margin-bottom:0.8rem;}
+.hist-head{background:var(--surface2);padding:6px 12px;display:flex;gap:0;border-bottom:1px solid var(--border-soft);}
+.hist-head span{font-family:var(--mono);font-size:9.5px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-dim);}
+.hist-head span:first-child{min-width:54px;}
+.hist-head span:nth-child(2){min-width:70px;}
+.hist-head span:last-child{flex:1;}
+.hist-body{max-height:180px;overflow-y:auto;}
+.hrow{display:flex;gap:0;padding:4px 12px;border-bottom:1px solid rgba(90,42,58,0.3);cursor:pointer;transition:background var(--tr);}
+.hrow:hover{background:var(--surface2);}
+.hrow:last-child{border-bottom:none;}
+.hrow .hc{font-family:var(--mono);font-size:11.5px;}
+.hrow .hc:first-child{min-width:54px;color:var(--text-ghost);}
+.hrow .hc:nth-child(2){min-width:70px;color:var(--text-dim);}
+.hrow .hc:last-child{flex:1;color:var(--text-mid);}
+.hrow.hr-match .hc:last-child{color:var(--green);}
+.hrow.hr-spurious .hc:last-child{color:var(--yellow);}
+.hrow.hr-miss .hc:last-child{color:var(--red);}
+.hrow.hr-current{background:rgba(224,88,120,0.08);}
+
+/* match chips */
+.match-chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:0.8rem;}
+.mchip{display:inline-flex;align-items:center;background:var(--green-bg);border:1px solid var(--green);border-radius:5px;padding:3px 10px;font-family:var(--mono);font-size:11px;color:var(--green);}
+.no-match{font-family:var(--mono);font-size:11.5px;color:var(--text-ghost);}
+
+/* ═══ RIGHT COLUMN SECTIONS ═════════════════════════════════════════ */
+.right-section{margin-bottom:2rem;}
+
+/* collapsible */
+.collapsible-hdr{
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--r);
+  padding:0.9rem 1.1rem;cursor:pointer;user-select:none;
+  transition:background var(--tr);
+  margin-bottom:0;
+}
+.collapsible-hdr:hover{background:var(--surface2);}
+.collapsible-hdr h3{font-family:var(--serif);font-size:1rem;font-weight:700;color:var(--text);}
+.caret{color:var(--text-dim);font-size:16px;transition:transform 0.25s;}
+.collapsed .caret{transform:rotate(-90deg);}
+.collapsible-body{
+  background:var(--panel);border:1px solid var(--border-soft);border-top:none;
+  border-radius:0 0 var(--r) var(--r);padding:1.2rem 1.3rem;
+}
+.coll-wrap{margin-bottom:1.2rem;}
+.coll-wrap.collapsed .collapsible-body{display:none;}
+.coll-wrap.collapsed .collapsible-hdr{border-radius:var(--r);}
+
+/* prose */
+.prose p{font-size:13.5px;color:var(--text-mid);line-height:1.8;margin-bottom:0.9rem;max-width:660px;}
+.prose p:last-child{margin-bottom:0;}
+.prose strong{color:var(--text);}
+.prose ul{margin:0.5rem 0 0.8rem 1.2rem;}
+.prose li{font-size:13.5px;color:var(--text-mid);line-height:1.75;margin-bottom:0.25rem;}
+
+/* concept box */
+.concept-box{background:var(--surface);border-left:3px solid var(--rose);border-radius:0 var(--r) var(--r) 0;padding:0.9rem 1rem;margin:0.9rem 0;}
+.concept-box.blue{border-color:var(--blue);}
+.concept-box.green{border-color:var(--green);}
+.concept-box.yellow{border-color:var(--yellow);}
+.concept-box.purple{border-color:var(--purple);}
+.concept-box h4{font-family:var(--sans);font-size:13px;font-weight:600;color:var(--text);margin-bottom:0.3rem;}
+.concept-box p{font-size:13px;color:var(--text-mid);line-height:1.7;margin:0;}
+
+/* formula card */
+.fcard{background:#0e0408;border:1px solid var(--border-soft);border-radius:var(--r);padding:1rem 1.2rem;margin:0.8rem 0;overflow-x:auto;}
+.fcard pre{font-family:var(--mono);font-size:12px;line-height:1.7;color:#e0c0c8;white-space:pre;}
+.fc{color:#5a3040;font-style:italic;}.fk{color:#f090a8;}.ff{color:#208040;}.fv{color:#80c8e8;}.fn{color:#c0a0e8;}
+
+/* complexity table */
+.ctbl{width:100%;border-collapse:collapse;font-size:12.5px;margin:0.8rem 0;}
+.ctbl th{background:var(--surface2);color:var(--rose);font-family:var(--mono);font-size:9.5px;letter-spacing:0.08em;text-transform:uppercase;font-weight:500;padding:7px 12px;border:1px solid var(--border-soft);text-align:left;}
+.ctbl td{padding:7px 12px;border:1px solid var(--border-soft);color:var(--text-mid);}
+.ctbl td strong{color:var(--text);}
+.ctbl tr:nth-child(even) td{background:rgba(255,255,255,0.02);}
+.badge{display:inline-block;border-radius:4px;padding:1px 7px;font-size:10.5px;border:1px solid;}
+.badge-g{background:var(--green-bg);border-color:var(--green);color:var(--green);}
+.badge-r{background:var(--red-bg);border-color:var(--red);color:var(--red);}
+.badge-y{background:var(--yellow-bg);border-color:var(--yellow);color:var(--yellow);}
+
+/* worked example */
+.we-step{display:flex;gap:1rem;padding:0.8rem 0;border-bottom:1px solid var(--border-soft);align-items:flex-start;}
+.we-step:last-child{border-bottom:none;}
+.we-num{width:28px;height:28px;border-radius:50%;background:var(--rose-faint);border:1px solid var(--rose-dim);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;color:var(--rose);flex-shrink:0;margin-top:2px;}
+.we-content h4{font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px;}
+.we-content p{font-size:12.5px;color:var(--text-mid);line-height:1.7;margin:0;}
+.we-content code{font-family:var(--mono);font-size:12px;background:var(--surface2);border:1px solid var(--border-soft);padding:1px 5px;border-radius:3px;color:var(--rose-dim);}
+
+/* ═══ GROWTH CHART (SVG) ════════════════════════════════════════════ */
+.chart-wrap{background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--r);padding:1rem;margin-bottom:0.8rem;}
+.chart-controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:0.8rem;}
+.chart-controls label{font-family:var(--mono);font-size:10.5px;color:var(--text-dim);}
+.chart-controls input[type=range]{accent-color:var(--rose);cursor:pointer;}
+.chart-controls span{font-family:var(--mono);font-size:11px;color:var(--rose-soft);}
+#growthSvg{width:100%;height:220px;display:block;}
+.chart-legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:6px;}
+.cl-item{display:flex;align-items:center;gap:5px;}
+.cl-line{width:22px;height:2px;flex-shrink:0;}
+.cl-item span{font-size:11px;color:var(--text-dim);}
+
+/* ═══ CLO SECTIONS ══════════════════════════════════════════════════ */
+.clo-badge{display:inline-block;background:var(--rose-faint);border:1px solid var(--rose-dim);border-radius:4px;padding:2px 8px;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--rose);margin-bottom:0.6rem;}
+
+/* cards */
+.card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0.8rem;margin:0.8rem 0;}
+.card{background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--r);padding:1rem 1.1rem;transition:box-shadow var(--tr),transform var(--tr);}
+.card:hover{box-shadow:0 4px 20px rgba(0,0,0,0.4);transform:translateY(-2px);}
+.card-lbl{font-family:var(--mono);font-size:9.5px;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:5px;}
+.card-lbl.g{color:var(--green);}
+.card-lbl.r{color:var(--red);}
+.card-lbl.b{color:var(--blue);}
+.card-lbl.p{color:var(--purple);}
+.card h4{font-family:var(--serif);font-size:1rem;font-weight:700;color:var(--text);margin-bottom:5px;line-height:1.25;}
+.card p{font-size:12.5px;color:var(--text-mid);line-height:1.65;}
+
+/* ═══ STEP EXPLANATION BOX (viz section) ════════════════════════════ */
+.step-explain-wrap{
+  border:1px solid rgba(184,60,88,0.22);border-radius:var(--r);
+  overflow:hidden;margin-top:0.8rem;margin-bottom:0;
+  background:var(--surface);
+  box-shadow:0 2px 8px rgba(184,60,88,0.06);
+}
+.step-explain-hdr{
+  display:flex;align-items:center;gap:7px;
+  background:linear-gradient(90deg,rgba(184,60,88,0.07),rgba(184,60,88,0.02));
+  border-bottom:1px solid rgba(184,60,88,0.15);
+  padding:7px 12px;
+}
+.step-explain-icon{font-size:14px;line-height:1;}
+.step-explain-title{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:0.12em;color:var(--rose);font-weight:600;}
+.step-explain-hint{font-family:var(--mono);font-size:9px;color:var(--text-ghost);margin-left:auto;}
+.step-explain-body{
+  padding:12px 16px;min-height:80px;
+  font-size:13px;color:var(--text-mid);line-height:1.8;
+}
+.step-explain-body br{display:block;margin-bottom:3px;}
+.step-explain-body code{font-family:var(--mono);font-size:11.5px;background:var(--surface2);border:1px solid var(--border-soft);padding:1px 5px;border-radius:3px;color:var(--rose-dim);}
+.step-explain-body strong{color:var(--rose-soft);}
+.step-explain-body .ew-match{color:var(--green);font-weight:600;}
+.step-explain-body .ew-spurious{color:var(--yellow);font-weight:600;}
+.step-explain-body .ew-miss{color:var(--red);font-weight:600;}
+.step-explain-body .ew-hash{color:var(--purple);font-weight:600;}
+footer{text-align:center;padding:1.4rem;font-family:var(--mono);font-size:10.5px;color:var(--text-ghost);border-top:1px solid var(--border-soft);letter-spacing:0.04em;}
+
+/* ═══ SCROLLBAR ═════════════════════════════════════════════════════ */
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:var(--surface2);}
+::-webkit-scrollbar-thumb{background:var(--border-soft);border-radius:3px;}
+
+/* ── NUMBERED SECTIONS (friend-style) ───────────────────────────── */
+.num-section{padding:2rem 0 1.5rem;border-top:2px solid var(--border);margin-bottom:0;}
+.num-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  background:var(--rose-faint);border:1px solid rgba(184,60,88,0.25);
+  border-radius:4px;padding:3px 10px;
+  font-family:var(--mono);font-size:10.5px;font-weight:600;
+  color:var(--rose);letter-spacing:0.06em;text-transform:uppercase;
+  margin-bottom:0.6rem;display:block;
+}
+.num-section > h2,.ns-h2{
+  font-family:var(--serif);font-size:1.5rem;font-weight:700;
+  color:var(--text);margin-bottom:0.8rem;line-height:1.2;
+}
+.ns-h3{
+  font-family:var(--sans);font-size:0.95rem;font-weight:600;
+  color:var(--text);margin:1.2rem 0 0.45rem;
+  padding-bottom:4px;border-bottom:1px solid var(--border-soft);
+}
+.ns-p{font-size:14px;color:var(--text-mid);line-height:1.82;margin-bottom:0.85rem;max-width:660px;}
+.ns-p strong{color:var(--text);}
+.ns-p:last-child{margin-bottom:0;}
+.ns-ul,.ns-ol{margin:0.4rem 0 0.8rem 1.3rem;}
+.ns-ul li,.ns-ol li{font-size:14px;color:var(--text-mid);line-height:1.78;margin-bottom:0.25rem;}
+.ns-ul li strong,.ns-ol li strong{color:var(--text);}
+
+.try-it{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:1rem 1.2rem;margin:0.9rem 0;}
+.try-it-label{font-family:var(--mono);font-size:9.5px;text-transform:uppercase;letter-spacing:0.12em;color:var(--rose);font-weight:600;margin-bottom:0.5rem;}
+.try-it ol{margin-left:1.2rem;}
+.try-it li{font-size:13.5px;color:var(--text-mid);line-height:1.8;margin-bottom:0.3rem;}
+.try-it li strong{color:var(--text);}
+
+.mistake-box{background:var(--red-bg);border:1px solid var(--red);border-radius:var(--r);padding:0.85rem 1rem;margin:0.7rem 0;}
+.mistake-box h4{font-size:12.5px;font-weight:600;color:var(--red);margin-bottom:0.25rem;}
+.mistake-box p{font-size:13px;color:var(--text-mid);line-height:1.7;margin:0;}
+
+.challenge-box{background:var(--surface);border:2px solid rgba(184,60,88,0.3);border-radius:var(--r);padding:1rem 1.2rem;margin:0.9rem 0;}
+.challenge-box-title{font-family:var(--serif);font-size:1rem;font-weight:700;color:var(--rose);margin-bottom:0.6rem;}
+.challenge-box ol{margin-left:1.2rem;}
+.challenge-box li{font-size:13.5px;color:var(--text-mid);line-height:1.8;margin-bottom:0.35rem;}
+.challenge-box li strong{color:var(--text);}
+
+.vocab-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:0.55rem;margin:0.8rem 0;}
+.vocab-item{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:0.65rem 0.85rem;}
+.vocab-term{font-family:var(--mono);font-size:10px;color:var(--rose);font-weight:600;margin-bottom:2px;text-transform:uppercase;letter-spacing:0.05em;}
+.vocab-def{font-size:12px;color:var(--text-mid);line-height:1.6;}
+
+.cmp-tbl{width:100%;border-collapse:collapse;font-size:13px;margin:0.8rem 0;}
+.cmp-tbl th{background:var(--surface2);color:var(--rose);font-family:var(--mono);font-size:9.5px;letter-spacing:0.08em;text-transform:uppercase;padding:7px 11px;border:1px solid var(--border);text-align:left;}
+.cmp-tbl td{padding:7px 11px;border:1px solid var(--border);color:var(--text-mid);}
+.cmp-tbl td strong{color:var(--text);}
+.cmp-tbl tr:nth-child(even) td{background:rgba(0,0,0,0.025);}
+
+.insight-banner{background:var(--rose-faint);border-left:3px solid var(--rose);border-radius:0 var(--r) var(--r) 0;padding:0.9rem 1.1rem;margin:0.9rem 0;}
+.insight-banner p{font-size:14px;color:var(--text-mid);line-height:1.78;margin:0;}
+.insight-banner p strong{color:var(--text);}
+
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<nav class="topbar">
+  <div class="tb-brand"><strong>BCS-309</strong> / Algorithms I &nbsp;·&nbsp; 20220001636 Fatima B</div>
+  <div class="tb-links">
+    <a href="#sec0">Foundations</a>
+    <a href="#howto">How to Use</a>
+    <a href="#overview">Overview</a>
+    <a href="#tool-anchor">Tool</a>
+    <a href="#clo1">CLO-1</a>
+    <a href="#clo2">CLO-2</a>
+    <a href="#clo3">CLO-3</a>
+    <a href="#sec7">Mistakes</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-inner">
+    <p class="hero-tag">BCS 309 · Midterm Exam Replacement · Spring 2026</p>
+    <h1>Rabin-Karp<br><em>String Matching</em></h1>
+    <p class="hero-sub">An <strong>interactive algorithm visualizer</strong> for the <strong>Rabin-Karp string matching algorithm</strong>. Rabin-Karp searches for a pattern <em>P</em> inside a text <em>T</em> by computing a <em>rolling hash</em> over every length-m window — so most non-matching positions are rejected in O(1) without reading individual characters. Only when two hash values agree is a full character check performed, bringing the expected cost down to O(n + m) versus the naïve O(n × m).</p>
+  </div>
+</div>
+
+<!-- MAIN LAYOUT -->
+<div class="main-layout">
+
+<!-- ═══════════════════════════════════════════════════
+     LEFT COLUMN — CONTROLS + TOOL
+════════════════════════════════════════════════════ -->
+<div class="col-left" id="tool-anchor">
+
+  <div class="sec-label">Interactive Visualizer</div>
+
+  <!-- Inputs -->
+  <div class="field"><label>Text — T</label><input type="text" id="tInput" value="AABAACAADAABAABA" maxlength="60"/></div>
+  <div class="field"><label>Pattern — P</label><input type="text" id="pInput" value="AABA" maxlength="20"/></div>
+  <div class="two-col">
+    <div class="field"><label>Base (d)</label><input type="number" id="dInput" value="26" min="2" max="256"/></div>
+    <div class="field"><label>Prime (q)</label><input type="number" id="qInput" value="101" min="2" max="9999"/></div>
+  </div>
+
+  <!-- Presets -->
+  <div class="sec-label" style="margin-top:0.2rem;">Preset Examples</div>
+  <div class="preset-row" id="presetRow"></div>
+
+  <!-- Speed -->
+  <div class="speed-row">
+    <label>Speed</label>
+    <input type="range" id="speedSlider" min="0.25" max="4" step="0.25" value="1"/>
+    <span id="speedVal">1.00×</span>
+  </div>
+
+  <!-- Actions -->
+  <div class="action-row">
+    <button class="abtn abtn-primary" id="btnBuild" onclick="buildSteps()">Build Steps</button>
+    <button class="abtn abtn-outline" id="btnStep" onclick="doStep()" disabled>Step</button>
+    <button class="abtn abtn-outline" id="btnPlay" onclick="startPlay()" disabled>Play</button>
+    <button class="abtn abtn-outline" id="btnPause" onclick="pausePlay()" disabled>Pause</button>
+    <button class="abtn abtn-ghost"   onclick="resetAll()">Reset</button>
+  </div>
+
+  <!-- Status + stats -->
+  <div class="status-bar">
+    <div class="sb-chip"><span class="sb-lbl">Step</span><span class="sb-val" id="stStep">0 / 0</span></div>
+    <div class="sb-chip"><span class="sb-lbl">Status</span><span class="sb-val" id="stStatus">Idle</span></div>
+    <div class="sb-chip"><span class="sb-lbl">Hash Checks</span><span class="sb-val y" id="stHash">0</span></div>
+    <div class="sb-chip"><span class="sb-lbl">Char Verifs</span><span class="sb-val y" id="stChar">0</span></div>
+    <div class="sb-chip"><span class="sb-lbl">Spurious</span><span class="sb-val p" id="stSpur">0</span></div>
+    <div class="sb-chip"><span class="sb-lbl">Matches</span><span class="sb-val g" id="stMatch">0</span></div>
+  </div>
+
+  <hr class="divider"/>
+
+  <!-- Pseudocode -->
+  <div class="sec-label">Pseudocode</div>
+  <div class="pseudo-wrap">
+    <div class="pseudo-head">Rabin-Karp — hover lines for explanation</div>
+    <div class="pseudo-body" id="pseudoBody"></div>
+  </div>
+
+  <!-- Explain -->
+  <div class="sec-label">Current Step</div>
+  <div class="explain-box" id="explainBox">Click <strong>Build Steps</strong>, then <strong>Step</strong> or <strong>Play</strong>.</div>
+
+  <!-- Matches -->
+  <div class="sec-label">Matches Found</div>
+  <div class="match-chips" id="matchChips"><span class="no-match">None yet</span></div>
+
+  <!-- History table -->
+  <div class="sec-label">History Table <span style="color:var(--text-ghost);font-size:9px;">(click row to jump)</span></div>
+  <div class="hist-wrap">
+    <div class="hist-head">
+      <span>Step</span><span>Shift</span><span>Event</span>
+    </div>
+    <div class="hist-body" id="histBody">
+      <div class="hrow"><span class="hc">—</span><span class="hc">—</span><span class="hc">No steps yet.</span></div>
+    </div>
+  </div>
+
+</div><!-- /col-left -->
+
+<!-- ═══════════════════════════════════════════════════
+     RIGHT COLUMN — VISUALIZATION + EDUCATIONAL
+════════════════════════════════════════════════════ -->
+<div class="col-right">
+
+  <!-- VISUALIZATION -->
+  <div class="right-section" id="viz-section">
+    <div class="sec-label">Visualization</div>
+
+    <!-- Legend -->
+    <div class="legend">
+      <div class="lg"><div class="lg-dot" style="background:rgba(26,82,160,0.15);border:1px solid #1a52a0;"></div><span>Current Window</span></div>
+      <div class="lg"><div class="lg-dot" style="background:var(--purple-bg);border:1px solid var(--purple);"></div><span>Hash Match — verifying</span></div>
+      <div class="lg"><div class="lg-dot" style="background:var(--green-bg);border:1px solid var(--green);"></div><span>True Match</span></div>
+      <div class="lg"><div class="lg-dot" style="background:var(--yellow-bg);border:1px solid var(--yellow);"></div><span>Spurious Hit</span></div>
+      <div class="lg"><div class="lg-dot" style="background:var(--red-bg);border:1px solid var(--red);"></div><span>Hash Mismatch</span></div>
+    </div>
+
+    <!-- Text tape -->
+    <div class="viz-section">
+      <p class="viz-label">Text T — length <span id="tLen">0</span> &nbsp;|&nbsp; shift s = <span id="shiftLbl">—</span></p>
+      <div class="tape" id="textTape"></div>
+    </div>
+
+    <!-- Pattern tape -->
+    <div class="viz-section">
+      <p class="viz-label">Pattern P — length <span id="pLen">0</span></p>
+      <div class="tape" id="patTape"></div>
+    </div>
+
+    <!-- Hash meter -->
+    <div class="hash-meter">
+      <div class="hm-cell"><span class="hm-lbl">Pattern hash h(P)</span><span class="hm-val hm-pat" id="hmPat">—</span></div>
+      <div class="hm-div"></div>
+      <div class="hm-cell"><span class="hm-lbl">Window hash h_win</span><span class="hm-val hm-win" id="hmWin">—</span></div>
+      <div class="hm-div"></div>
+      <div class="hm-cell"><span class="hm-lbl">Equal?</span><span class="hm-val" id="hmEq" style="color:var(--text-dim)">—</span></div>
+      <div class="hm-div"></div>
+      <div class="hm-cell" style="flex:2"><span class="hm-lbl">Rolling formula</span><span class="hm-formula" id="hmFormula">—</span></div>
+    </div><!-- /hash-meter -->
+
+    <!-- Step Explanation box -->
+    <div class="step-explain-wrap">
+      <div class="step-explain-hdr">
+        <span class="step-explain-icon">💬</span>
+        <span class="step-explain-title">Step-by-Step Explanation</span>
+        <span class="step-explain-hint">updates automatically as you step / play</span>
+      </div>
+      <div class="step-explain-body" id="vizExplainBox">
+        Click a <strong>Preset</strong>, then <strong>Build Steps</strong>, then <strong>Step ▶</strong> or <strong>Play ▶▶</strong>.<br>
+        This box will explain every single step of the algorithm in plain English as it runs.
+      </div>
+    </div>
+
+  </div><!-- /viz-section -->
+
+  <hr class="divider"/>: FOUNDATIONS — always visible, friend-style -->
+  <div class="right-section num-section" id="sec0">
+    <span class="num-badge">Section 0 — Core Concepts</span>
+    <h2 class="ns-h2">Algorithms, String Matching &amp; Why We Need Hashing</h2>
+    <p class="ns-p">This section requires no prior knowledge. If you are reading about string matching algorithms for the first time, start here. Every term is defined before it is used.</p>
+
+    <h3 class="ns-h3">What is an Algorithm?</h3>
+    <p class="ns-p">An algorithm is a finite, step-by-step procedure that takes an input, performs a series of well-defined operations, and produces an output. Two algorithms can solve the same problem but have very different performance — choosing the right one matters enormously in practice.</p>
+    <p class="ns-p">For string matching, both the naive brute-force algorithm and Rabin-Karp find all occurrences of a pattern in a text. But for a 1,000,000-character document and a 100-character pattern, brute-force may do 100,000,000 comparisons while Rabin-Karp does approximately 1,000,100. That is a 1000× speedup.</p>
+
+    <h3 class="ns-h3">What is the String Matching Problem?</h3>
+    <p class="ns-p">Given a <strong>text T</strong> of length n and a shorter <strong>pattern P</strong> of length m, find every starting position (called a <strong>shift</strong>) where P occurs in T. This is the algorithm behind every Ctrl+F search, every DNA sequence scanner, every spam filter, and every plagiarism detector.</p>
+    <div class="fcard" style="margin:0.7rem 0;">
+<pre>Text T    = "AABAACAADAABAABA"    (n = 16)
+Pattern P = "AABA"               (m = 4)
+Matches   →  shift s = 0, s = 9, s = 12</pre></div>
+    <p class="ns-p">The output is the list of all valid shifts. The challenge is computing this list <strong>efficiently</strong>.</p>
+
+    <h3 class="ns-h3">Why is Naive Brute-Force Slow?</h3>
+    <p class="ns-p">The simplest method slides P across T one position at a time and compares characters one by one. At each of the n positions, it may compare up to m characters — giving a worst-case cost of <strong>O(n × m)</strong>.</p>
+    <div class="fcard" style="margin:0.7rem 0;">
+<pre><span class="fk">for</span> s = 0 to n-m:           <span class="fc">// n positions</span>
+    <span class="fk">if</span> T[s..s+m-1] == P:    <span class="fc">// m comparisons each</span>
+        report match at s   <span class="fc">// total: O(n × m)</span></pre></div>
+    <p class="ns-p">For n=1,000,000 and m=100 that is 100 million character comparisons. Rabin-Karp reduces this to approximately O(n + m) by replacing character-by-character comparisons with a single integer comparison using a <strong>hash</strong>.</p>
+
+    <h3 class="ns-h3">What is a Hash Function?</h3>
+    <p class="ns-p">A hash function converts a string (or any data) into a single number called a <strong>hash value</strong>. A good hash function has two key properties:</p>
+    <ul class="ns-ul">
+      <li><strong>Consistency:</strong> The same string always produces the same hash value.</li>
+      <li><strong>Discrimination:</strong> Different strings very rarely produce the same hash value.</li>
+    </ul>
+    <p class="ns-p">Because of the consistency property, if two strings have <em>different</em> hash values, they are guaranteed to be different strings. This lets us reject windows instantly with a single integer comparison — no character reading needed.</p>
+
+    <h3 class="ns-h3">What is Big-O Notation?</h3>
+    <p class="ns-p">Big-O notation describes how the running time of an algorithm grows as the input size increases. It ignores constants and focuses on the dominant term, because for large inputs the growth rate is what matters.</p>
+    <div style="overflow-x:auto;">
+    <table class="cmp-tbl">
+      <thead><tr><th>Notation</th><th>Name</th><th>Meaning</th><th>Example</th></tr></thead>
+      <tbody>
+        <tr><td><strong>O(1)</strong></td><td>Constant</td><td>Same time regardless of input size</td><td>Integer comparison</td></tr>
+        <tr><td><strong>O(m)</strong></td><td>Linear in m</td><td>Grows proportionally with pattern length</td><td>Computing one hash</td></tr>
+        <tr><td><strong>O(n)</strong></td><td>Linear in n</td><td>Grows proportionally with text length</td><td>One pass over text</td></tr>
+        <tr><td><strong>O(n + m)</strong></td><td>Linear</td><td>Grows with both; dominated by n for large texts</td><td>Rabin-Karp expected</td></tr>
+        <tr><td><strong>O(nm)</strong></td><td>Quadratic</td><td>Grows with product of both — much worse</td><td>Brute-force worst case</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="ns-p"><strong>Key rule:</strong> O(1) &lt; O(m) &lt; O(n) &lt; O(n+m) &lt; O(nm). The further right, the slower the algorithm grows for large inputs. Always prefer algorithms further to the left.</p>
+
+    <div class="try-it">
+      <div class="try-it-label">Try it yourself — before using the tool</div>
+      <ol>
+        <li>Text = <strong>"ABCABCABC"</strong>, Pattern = <strong>"ABC"</strong>. How many matches do you expect? At which positions? (Then load the "Simple" preset to verify.)</li>
+        <li>Text = <strong>"AAAAAAAAAB"</strong>, Pattern = <strong>"AAAB"</strong>. Where does the pattern occur? How many near-misses (partial matches) are there?</li>
+        <li>If n = 1000 and m = 50, how many character comparisons does brute-force need in the worst case? How about Rabin-Karp (expected)?</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- HOW TO USE THIS TOOL -->
+  <div class="right-section num-section" id="howto">
+    <span class="num-badge">Section 1 — How to Use This Tool</span>
+    <h2 class="ns-h2">Using the Interactive Visualizer — Step by Step</h2>
+    <div class="coll-wrap" id="cwHowTo">
+      <div class="collapsible-body">
+        <div class="prose">
+          <p>This tool lets you watch the Rabin-Karp algorithm run one step at a time, so you can understand exactly what it is doing and why. Follow these steps if you are completely new to it.</p>
+        </div>
+
+        <div class="we-step"><div class="we-num">1</div><div class="we-content">
+          <h4>Read the Algorithm Overview section first</h4>
+          <p>Scroll down to "Algorithm Overview" and read it before using the tool. It explains what problem we are solving, what a hash function is, and what "spurious hit" means. You do not need any prior knowledge — everything is explained from scratch.</p>
+        </div></div>
+
+        <div class="we-step"><div class="we-num">2</div><div class="we-content">
+          <h4>Load a preset example</h4>
+          <p>Click one of the <strong>Quick Example</strong> buttons on the left (e.g., "Multiple matches"). This fills in a text and pattern for you. Start with "Multiple matches" — it shows a clear case where the algorithm finds several hits.</p>
+        </div></div>
+
+        <div class="we-step"><div class="we-num">3</div><div class="we-content">
+          <h4>Click "Build Steps"</h4>
+          <p>This button pre-computes every step the algorithm will take. The status bar will change from <strong>Idle</strong> to <strong>Ready</strong> and the step counter will show "0 / N" where N is the total number of steps.</p>
+        </div></div>
+
+        <div class="we-step"><div class="we-num">4</div><div class="we-content">
+          <h4>Press "Step" repeatedly — read the explanation each time</h4>
+          <p>Each press advances the algorithm by one operation. Read the <strong>Current Step</strong> box below the buttons — it explains in plain English exactly what just happened and why. The pseudocode panel will also highlight the line currently being executed.</p>
+        </div></div>
+
+        <div class="we-step"><div class="we-num">5</div><div class="we-content">
+          <h4>Watch the character tapes and hash meter</h4>
+          <p>The two rows of letter boxes show the text (top) and pattern (bottom). Colours tell you what the algorithm is doing right now:<br/>
+          — <strong style="color:#60a8e0;">Blue</strong> = current window being examined<br/>
+          — <strong style="color:#b888f0;">Purple</strong> = hash values matched, now verifying characters<br/>
+          — <strong style="color:#48c888;">Green</strong> = confirmed match found<br/>
+          — <strong style="color:#d4a840;">Yellow</strong> = spurious hit (hashes matched but strings differ)<br/>
+          — <strong style="color:#e86060;">Red</strong> = hash mismatch, window skipped</p>
+        </div></div>
+
+        <div class="we-step"><div class="we-num">6</div><div class="we-content">
+          <h4>Use "Play" to see it animate automatically</h4>
+          <p>Press <strong>Play</strong> to run all steps automatically. Use the <strong>Speed slider</strong> to slow it down (0.25×) when learning, or speed it up (4×) once you are comfortable. Press <strong>Pause</strong> at any moment to stop and examine a specific step.</p>
+        </div></div>
+
+        <div class="we-step"><div class="we-num">7</div><div class="we-content">
+          <h4>Click history rows to jump back</h4>
+          <p>The <strong>History Table</strong> at the bottom of the left panel logs every event. Clicking any row will instantly jump the animation back to that exact moment — useful for reviewing a step you missed.</p>
+        </div></div>
+
+        <div class="we-step"><div class="we-num">8</div><div class="we-content">
+          <h4>Try typing your own text and pattern</h4>
+          <p>Once you understand the basics, type your own words into the <strong>Text</strong> and <strong>Pattern</strong> fields and press <strong>Build Steps</strong> again. Try the preset "All-A spurious" to see what happens in the worst case — every window produces a spurious hit.</p>
+        </div></div>
+
+        <div class="concept-box blue" style="margin-top:0.8rem;">
+          <h4>Hover over pseudocode lines for explanations</h4>
+          <p>Move your mouse over any line in the Pseudocode panel on the left. A tooltip will appear explaining what that line does in plain English. This links the code to the concept.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OVERVIEW (collapsible) -->
+  <div class="right-section num-section" id="overview">
+    <span class="num-badge">Section 2 — Algorithm Overview</span>
+    <h2 class="ns-h2">What is Rabin-Karp? How Does It Work?</h2>
+    <div class="coll-wrap" id="cwOverview">
+      <div class="collapsible-body">
+        <div class="sec-label" style="margin-bottom:0.4rem;">What problem does it solve?</div>
+        <div class="prose">
+          <p>Imagine you are searching for the word <em>"AABA"</em> inside the sentence <em>"AABAACAADAABAABA"</em>. You want to find every position where it appears. This is the <strong>string matching problem</strong>: given a <strong>text T</strong> of length n and a <strong>pattern P</strong> of length m, find all starting positions where P occurs in T.</p>
+          <p>This sounds simple, but doing it efficiently is a core challenge in computer science. Every text editor's Ctrl+F, every DNA sequence search, every plagiarism detector solves exactly this problem billions of times.</p>
+        </div>
+
+        <div class="sec-label" style="margin-bottom:0.4rem;margin-top:0.9rem;">Why not just compare directly?</div>
+        <div class="prose">
+          <p>The simplest approach — called <strong>Naive / Brute-Force</strong> — slides the pattern across the text one position at a time and compares every character. For each of the n positions, it may compare up to m characters. This gives a worst-case cost of <strong>O(n × m)</strong>. For large texts and patterns, this is unacceptably slow.</p>
+          <p>Rabin-Karp's key idea: instead of comparing all m characters at each position, <strong>first compare a single number</strong>. That number — called a <strong>hash</strong> — summarises the entire window in one integer. Two identical strings always have the same hash, so if the hashes differ, we can skip the window entirely without looking at a single character.</p>
+        </div>
+
+        <div class="sec-label" style="margin-bottom:0.4rem;margin-top:0.9rem;">What is a hash function?</div>
+        <div class="prose">
+          <p>A <strong>hash function</strong> turns a string into a number. A good hash function spreads different strings across different numbers, so two strings that are NOT equal are very unlikely to produce the same hash. Rabin-Karp uses a <strong>polynomial hash</strong>:</p>
+        </div>
+        <div class="fcard">
+<pre>h("ABC") = (A × d² + B × d¹ + C × d⁰) mod q
+
+where:
+  d = base (usually alphabet size, e.g. 26 or 256)
+  q = a prime number (e.g. 101) to keep numbers small
+  A, B, C = numeric values of each character (e.g. ASCII codes)</pre>
+        </div>
+        <div class="prose">
+          <p>The modulo operation (mod q) keeps the number small so it fits in a machine integer. It also means two different strings CAN produce the same hash — this is called a <strong>collision</strong> and is unavoidable with finite-size integers. We will deal with this below.</p>
+        </div>
+
+        <div class="sec-label" style="margin-bottom:0.4rem;margin-top:0.9rem;">The rolling hash — why it is clever</div>
+        <div class="prose">
+          <p>The expensive part is computing the hash of each window. If we recomputed it from scratch each time (looking at all m characters), we gain nothing. The brilliant part of Rabin-Karp is the <strong>rolling hash</strong>: when the window slides one position right, we can update the hash in <strong>O(1)</strong> — constant time, regardless of m.</p>
+          <p>The intuition: the new window shares m−1 characters with the old window. We just remove the contribution of the character that left, and add the contribution of the new character that entered:</p>
+        </div>
+        <div class="fcard">
+<pre><span class="fc">// Old window: T[s .. s+m-1]    New window: T[s+1 .. s+m]</span>
+<span class="fc">// They share: T[s+1], T[s+2], ..., T[s+m-1]  (m-1 characters)</span>
+
+h_new = (d × (h_old − T[s] × h_high) + T[s+m]) mod q
+
+<span class="fc">// h_high = d^(m-1) mod q  (precomputed once before the loop)</span>
+<span class="fc">// T[s]   = character being removed  (the leftmost one leaving)</span>
+<span class="fc">// T[s+m] = character being added    (the new rightmost one)</span></pre>
+        </div>
+
+        <div class="sec-label" style="margin-bottom:0.4rem;margin-top:0.9rem;">What are spurious hits?</div>
+        <div class="prose">
+          <p>A <strong>spurious hit</strong> occurs when h_window = h_pattern but the window and pattern are actually different strings — a hash collision. When this happens, we must verify character by character (O(m) cost). The algorithm is still <strong>correct</strong> — we never miss a match and never report a false match — but we pay extra time for the verification.</p>
+          <p>With a prime q = 101, the probability of a spurious hit at any given window is roughly 1/101 ≈ 1%. With q = 1000003 it drops to 0.0001%. In the extreme (adversarially crafted) input, every window is a spurious hit — giving O(nm) worst case. In practice, spurious hits are very rare.</p>
+        </div>
+
+        <div class="concept-box">
+          <h4>When is Rabin-Karp the right choice?</h4>
+          <p><strong>Best for:</strong> Searching for many patterns simultaneously (store all hashes in a set; one O(n) pass finds any of them). Plagiarism detection, DNA motif search, network intrusion detection.<br/>
+          <strong>Not ideal for:</strong> Single-pattern search where worst-case O(nm) is unacceptable — use KMP (guaranteed O(n)) instead.<br/>
+          <strong>Unique advantage:</strong> O(1) space (no auxiliary table like KMP's failure function).</p>
+        </div>
+        <div class="concept-box green" style="margin-top:0.6rem;">
+          <h4>Most common mistake</h4>
+          <p>Forgetting to apply mod q to every arithmetic operation. Without it, intermediate values grow exponentially and overflow, producing garbage hash values. Every add, multiply, and subtract must be followed by mod q — especially the subtraction in the rolling formula, which can go negative (add q before taking mod to fix this).</p>
+        </div>
+        <div class="concept-box yellow" style="margin-top:0.6rem;">
+          <h4>Key vocabulary to know</h4>
+          <p><strong>Text (T):</strong> The large string we are searching through.<br/>
+          <strong>Pattern (P):</strong> The shorter string we are looking for.<br/>
+          <strong>Window:</strong> The m-character substring of T currently being examined.<br/>
+          <strong>Shift (s):</strong> The starting position of the current window.<br/>
+          <strong>Hash:</strong> A number that represents a string, computed by a hash function.<br/>
+          <strong>Rolling hash:</strong> A technique to update a window's hash in O(1) as it slides.<br/>
+          <strong>Spurious hit:</strong> A false positive where hashes match but strings do not.<br/>
+          <strong>h_high:</strong> The precomputed value d^(m-1) mod q, used in the rolling formula.</p>
+        </div>
+
+        <div class="try-it" style="margin-top:1rem;">
+          <div class="try-it-label">Check your understanding</div>
+          <ol>
+            <li>Why does Rabin-Karp compute h(P) only once but compute h(T[0..m-1]) once as well? Could we compute h(T[0..m-1]) inside the loop?</li>
+            <li>If two windows have the same hash but different characters, what does Rabin-Karp do? What would happen if it just reported a match anyway?</li>
+            <li>If you increase q from 101 to 1009, what effect does this have on the number of spurious hits? What is the tradeoff?</li>
+          </ol>
+        </div>
+        <div class="mistake-box">
+          <h4>Most common implementation mistake</h4>
+          <p>The rolling hash subtraction can produce a <strong>negative number</strong>. In most programming languages, the <code style="font-family:var(--mono);font-size:12px;">%</code> operator on a negative number returns a negative result. Always add q before taking mod: <code style="font-family:var(--mono);font-size:12px;">((h % q) + q) % q</code>. Forgetting this will cause your algorithm to miss matches silently.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WORKED EXAMPLE (collapsible) -->
+  <div class="right-section num-section">
+    <span class="num-badge">Section 3 — Worked Example</span>
+    <h2 class="ns-h2">Tracing Rabin-Karp by Hand — Every Calculation Shown</h2>
+    <div class="coll-wrap" id="cwWorked">
+      <div class="collapsible-body">
+        <div class="prose">
+          <p>We will trace through the full algorithm by hand, step by step, computing every hash value manually. This is the best way to see exactly how the rolling hash works in practice.</p>
+          <p><strong>Setup:</strong> Text T = <code style="font-family:var(--mono);background:var(--surface2);border:1px solid var(--border-soft);padding:1px 5px;border-radius:3px;color:var(--rose-dim);">"ABCABD"</code> (n=6), Pattern P = <code style="font-family:var(--mono);background:var(--surface2);border:1px solid var(--border-soft);padding:1px 5px;border-radius:3px;color:var(--rose-dim);">"ABD"</code> (m=3), d = 10, q = 13.<br/>
+          Character values: A=1, B=2, C=3, D=4. h_high = d^(m-1) mod q = 10² mod 13 = 100 mod 13 = <strong>9</strong>.</p>
+        </div>
+        <div class="we-step"><div class="we-num">1</div><div class="we-content"><h4>Compute h(P)</h4><p>h("ABD") = (1·10² + 2·10 + 4) mod 13 = (100+20+4) mod 13 = 124 mod 13 = <strong>7</strong>. Also h_high = d^(m-1) mod q = 10² mod 13 = 100 mod 13 = <strong>9</strong>.</p></div></div>
+        <div class="we-step"><div class="we-num">2</div><div class="we-content"><h4>First window "ABC" → hash = ?</h4><p>h("ABC") = (1·100 + 2·10 + 3) mod 13 = 123 mod 13 = <strong>6</strong>. Compare: 6 ≠ 7. Hash mismatch — skip, no character check needed.</p></div></div>
+        <div class="we-step"><div class="we-num">3</div><div class="we-content"><h4>Roll to "BCA"</h4><p>h_new = (10·(6 − 1·9) + 3) mod 13 = (10·(−3) + 3) mod 13 = (−27) mod 13 = <strong>12</strong>. (We add 13 to keep positive.) Compare: 12 ≠ 7. Skip.</p></div></div>
+        <div class="we-step"><div class="we-num">4</div><div class="we-content"><h4>Roll to "CAB"</h4><p>h_new = (10·(12 − 2·9) + 2) mod 13 = (10·(−6) + 2) mod 13 = (−58) mod 13 = <strong>7</strong> (add 65). Compare: 7 == 7. Hash match! Verify: C≠A → <code>spurious hit</code>. No match.</p></div></div>
+        <div class="we-step"><div class="we-num">5</div><div class="we-content"><h4>Roll to "ABD"</h4><p>h_new = (10·(7 − 3·9) + 4) mod 13 = (10·(−20) + 4) mod 13 = (−196) mod 13 = <strong>7</strong>. Compare: 7 == 7. Verify: A==A, B==B, D==D → <code>True match at s=3!</code></p></div></div>
+        <div class="we-step"><div class="we-num">6</div><div class="we-content"><h4>Takeaway</h4><p>Step 4 showed a <strong>spurious hit</strong> — hashes matched but strings differed. Step 5 confirmed a true match after character verification. This is the full Rabin-Karp cycle in action.</p></div></div>
+
+        <div class="insight-banner" style="margin-top:1rem;">
+          <p><strong>Why trace by hand?</strong> Working through an example manually — computing each hash value yourself — is the single most effective way to understand how the rolling formula works. Read each step, then verify the arithmetic on paper before moving on. This is exactly what the tool shows you when you press Step.</p>
+        </div>
+        <div class="try-it">
+          <div class="try-it-label">Now try a new example yourself</div>
+          <ol>
+            <li>Set T = <strong>"ABCABD"</strong>, P = <strong>"ABD"</strong>, d = 10, q = 13 in the tool. Press Build Steps and Step through. Does the tool show the same hash values you computed above?</li>
+            <li>Now change q = 7 (a smaller prime). Does the spurious hit at step 4 still appear? Does a new one appear?</li>
+            <li>What is h_high for m=4 and d=10 and q=13? (Answer: 10³ mod 13 = 1000 mod 13 = 12.)</li>
+          </ol>
+        </div>
+        <div class="mistake-box">
+          <h4>Common arithmetic mistake in the rolling formula</h4>
+          <p>When computing <strong>(h_old − T[s] × h_high)</strong>, the subtraction can be negative. Example: h_old=6, T[s]×h_high=9 gives −3. You must add q before taking mod: (−3 + 13) mod 13 = 10. Never skip this step.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CLO-1 SECTION -->
+  <div class="right-section num-section" id="clo1">
+    <span class="num-badge">Section 4 — CLO-1 · Complexity Analysis</span>
+    <h2 class="ns-h2">Time Complexity, Growth Curves &amp; Worst-Case Analysis</h2>
+
+    <div class="table-wrap" style="overflow-x:auto;">
+      <table class="ctbl">
+        <thead><tr><th>Case</th><th>Time</th><th>Space</th><th>Note</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Preprocessing</strong></td><td>O(m)</td><td>O(1)</td><td>Hash pattern + first window</td></tr>
+          <tr><td><strong>Expected (average)</strong></td><td><strong>O(n + m)</strong></td><td>O(1)</td><td><span class="badge badge-g">Typical</span> Spurious hits rare with large prime q</td></tr>
+          <tr><td><strong>Worst case</strong></td><td>O(nm)</td><td>O(1)</td><td><span class="badge badge-r">Degenerate</span> Every window is a spurious hit</td></tr>
+          <tr><td><strong>Multi-pattern (k)</strong></td><td>O(n + km)</td><td>O(k)</td><td><span class="badge badge-y">Strength</span> Single pass, hash-set lookup</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="concept-box purple">
+      <h4>Worst-case trigger</h4>
+      <p>Load the preset "All-A spurious" in the tool. Every window hashes identically to the pattern, forcing a character check at every shift. The character verification count equals n × m — demonstrating O(nm) behaviour.</p>
+    </div>
+
+    <!-- Growth chart -->
+    <div class="chart-wrap">
+      <div class="sec-label">Interactive Growth Chart</div>
+      <div class="chart-controls">
+        <label>n =</label>
+        <input type="range" id="nSlider" min="10" max="500" value="100" oninput="drawChart()"/>
+        <span id="nVal">100</span>
+        <label style="margin-left:10px;">m =</label>
+        <input type="range" id="mSlider" min="2" max="50" value="5" oninput="drawChart()"/>
+        <span id="mVal">5</span>
+      </div>
+      <svg id="growthSvg" viewBox="0 0 600 220"></svg>
+      <div class="chart-legend">
+        <div class="cl-item"><div class="cl-line" style="background:#60a8e0;"></div><span>O(n+m) — Rabin-Karp expected</span></div>
+        <div class="cl-item"><div class="cl-line" style="background:#e86060;"></div><span>O(nm) — Naive / RK worst-case</span></div>
+        <div class="cl-item"><div class="cl-line" style="background:#48c888;"></div><span>O(n) — KMP guaranteed</span></div>
+      </div>
+    </div>
+
+    <div class="prose">
+      <p><strong>Comparison with alternatives:</strong> KMP guarantees O(n) in all cases by using a precomputed failure table — no spurious hits are possible. Rabin-Karp trades that guarantee for O(1) space and superior multi-pattern performance. The naive brute-force shares Rabin-Karp's worst-case O(nm) but has no hashing advantage.</p>
+    </div>
+
+    <h3 class="ns-h3" style="margin-top:1rem;">Algorithm Comparison Table</h3>
+    <div style="overflow-x:auto;">
+    <table class="cmp-tbl">
+      <thead><tr><th>Algorithm</th><th>Expected Time</th><th>Worst Case</th><th>Space</th><th>Always Correct?</th><th>Multi-Pattern?</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Naive Brute-Force</strong></td><td>O(nm)</td><td>O(nm)</td><td>O(1)</td><td>Yes</td><td>Poor (k passes)</td></tr>
+        <tr><td><strong>Rabin-Karp</strong></td><td><strong>O(n+m)</strong></td><td>O(nm)</td><td>O(1)</td><td>Yes (with verify)</td><td>Excellent (hash set)</td></tr>
+        <tr><td><strong>KMP</strong></td><td>O(n+m)</td><td>O(n+m)</td><td>O(m)</td><td>Yes</td><td>Poor</td></tr>
+        <tr><td><strong>Boyer-Moore</strong></td><td>O(n/m)</td><td>O(nm)</td><td>O(σ+m)</td><td>Yes</td><td>Poor</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <div class="coll-wrap" id="cwDerivation">
+      <div class="collapsible-hdr" onclick="toggleColl('cwDerivation')">
+        <h3>Full Complexity Derivation — step by step</h3><span class="caret">▼</span>
+      </div>
+      <div class="collapsible-body">
+        <div class="prose">
+          <p>A derivation does not just state "O(n+m)" — it shows exactly <em>why</em> by counting the dominant operations. Here is the full argument:</p>
+        </div>
+
+        <div class="we-step"><div class="we-num">1</div><div class="we-content">
+          <h4>Preprocessing cost — O(m)</h4>
+          <p>We perform three one-time operations before the main loop:<br/>
+          • Compute h_high = d^(m-1) mod q: one loop of m-1 multiplications → <strong>O(m)</strong><br/>
+          • Compute h(P): one loop of m multiplications → <strong>O(m)</strong><br/>
+          • Compute h(T[0..m-1]): one loop of m multiplications → <strong>O(m)</strong><br/>
+          Total preprocessing: 3 × O(m) = <strong>O(m)</strong>.</p>
+        </div></div>
+
+        <div class="we-step"><div class="we-num">2</div><div class="we-content">
+          <h4>Main loop iterations — O(n)</h4>
+          <p>The loop runs for s = 0, 1, 2, ..., n-m. That is exactly <strong>n − m + 1</strong> iterations. Since m ≤ n, this is at most n iterations → <strong>O(n)</strong>.</p>
+        </div></div>
+
+        <div class="we-step"><div class="we-num">3</div><div class="we-content">
+          <h4>Cost per loop iteration — O(1) in the expected case</h4>
+          <p>At each shift s, we do:<br/>
+          • One integer comparison h_win == h_pat → <strong>O(1)</strong><br/>
+          • One rolling hash update → <strong>O(1)</strong> (three arithmetic operations)<br/>
+          If the hash comparison fails (the common case), we move on. <strong>No character checking.</strong><br/>
+          → Per-iteration cost in the expected case: O(1).</p>
+        </div></div>
+
+        <div class="we-step"><div class="we-num">4</div><div class="we-content">
+          <h4>Character verification — only on hash matches</h4>
+          <p>When h_win == h_pat, we run a character-by-character check costing O(m). This happens:<br/>
+          • At every <strong>true match</strong> (unavoidable — we must verify). If there are k matches, this costs k × O(m).<br/>
+          • At every <strong>spurious hit</strong>. With prime q, the probability of a spurious hit at any position is ≤ 1/q. Expected number of spurious hits ≤ n/q, so expected verification cost ≤ (n/q) × O(m).<br/>
+          For large q, this is negligible. Total expected verification: <strong>O(km + nm/q)</strong>.</p>
+        </div></div>
+
+        <div class="we-step"><div class="we-num">5</div><div class="we-content">
+          <h4>Putting it together — expected total</h4>
+          <p>Total = Preprocessing + Loop + Verification<br/>
+          = O(m) + O(n) × O(1) + O(km + nm/q)<br/>
+          = O(m) + O(n) + O(nm/q)<br/>
+          For constant k and large q (e.g. q > n), the verification term → O(m).<br/>
+          → <strong>Expected total: O(n + m)</strong></p>
+        </div></div>
+
+        <div class="we-step"><div class="we-num">6</div><div class="we-content">
+          <h4>Worst case — O(nm)</h4>
+          <p>In the worst case, every window is a spurious hit. This happens when the hash function maps all possible m-character strings to the same value — for example, searching for "AAAB" in "AAAAAAAAA" with a poorly chosen (d, q) pair. Each of the n-m+1 shifts triggers O(m) verification. Total: <strong>O(nm)</strong>. Load the "All-A spurious" preset in the tool to observe this.</p>
+        </div></div>
+
+        <div class="concept-box purple">
+          <h4>Space complexity — O(1)</h4>
+          <p>The algorithm uses only a fixed number of integer variables (h_pat, h_win, h_high, s, j, n, m, d, q) regardless of the input size. Unlike KMP, which requires an O(m) failure table, Rabin-Karp needs no auxiliary data structure. Space complexity: <strong>O(1)</strong>.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="challenge-box" style="margin-top:1rem;">
+      <div class="challenge-box-title">Self-Study Challenges — Complexity</div>
+      <ol>
+        <li>Load the <strong>"All-A spurious"</strong> preset. Press Build Steps. Before pressing Play, predict: how many hash checks, character verifications, and spurious hits will occur? Then run it and compare your prediction to the counters.</li>
+        <li>Change q from 101 to 7 (a very small prime). Run the same preset. Does the spurious hit count increase? By roughly how much? Why?</li>
+        <li>For n = 16 and m = 4, the theoretical O(nm) worst case is 16 × 4 = 64 character comparisons. Can you construct a text and pattern that actually reaches this bound?</li>
+        <li>Why is Rabin-Karp's space complexity O(1) while KMP's is O(m)? What does KMP store in its O(m) space that Rabin-Karp does not need?</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- CLO-2 SECTION -->
+  <div class="right-section num-section" id="clo2">
+    <span class="num-badge">Section 5 — CLO-2 · Searching Role</span>
+    <h2 class="ns-h2">Hashing as a Search Filter — Two-Tier Strategy</h2>
+    <div class="prose">
+      <p>The central searching mechanism in Rabin-Karp is the <strong>hash comparison</strong> that acts as a fast filter before expensive character verification. At every window shift, O(1) hash arithmetic decides whether to skip the window entirely or to run a full O(m) character scan.</p>
+      <p>This is a two-tier search strategy:</p>
+    </div>
+    <div class="concept-box blue">
+      <h4>Tier 1 — Hash filter (O(1) per window)</h4>
+      <p>Compare h_window with h_pattern. If they differ, skip immediately. This handles the vast majority of positions in a typical search.</p>
+    </div>
+    <div class="concept-box green" style="margin-top:0.6rem;">
+      <h4>Tier 2 — Character verification (O(m), only on hash match)</h4>
+      <p>When hashes match, verify character by character to rule out spurious hits. In the expected case this happens only at true match positions.</p>
+    </div>
+    <div class="concept-box" style="margin-top:0.6rem;">
+      <h4>What happens without hashing?</h4>
+      <p>Without the hash filter, every window requires a full O(m) character scan — exactly the naive brute-force approach with O(nm) worst case. The hash is what makes the expected case O(n + m).</p>
+    </div>
+    <div class="card-grid" style="margin-top:0.8rem;">
+      <div class="card"><p class="card-lbl g">Advantage</p><h4>Skip most windows instantly</h4><p>With a prime q = 101, roughly 99% of non-match windows are rejected after a single integer comparison.</p></div>
+      <div class="card"><p class="card-lbl r">Risk</p><h4>False positives (spurious hits)</h4><p>Hash collisions cause spurious work. Choosing a larger prime (e.g., q = 1000003) reduces collision rate to under 0.0001%.</p></div>
+    </div>
+
+    <div class="coll-wrap" id="cwEdgeCases" style="margin-top:0.8rem;">
+      <div class="collapsible-body">
+        <h3 class="ns-h3">Edge Cases, Applicability &amp; When NOT to Use It</h3>
+        <div class="sec-label" style="margin-bottom:0.4rem;">Edge cases to know</div>
+        <div class="we-step"><div class="we-num">E1</div><div class="we-content">
+          <h4>Pattern longer than text (m &gt; n)</h4>
+          <p>Impossible to match — the algorithm should return immediately with no matches. The loop condition s ≤ n-m would have no iterations. Try typing a longer pattern than text in the tool and pressing Build Steps.</p>
+        </div></div>
+        <div class="we-step"><div class="we-num">E2</div><div class="we-content">
+          <h4>Pattern equals text (m = n)</h4>
+          <p>Only one window exists (s = 0 only). One hash comparison, one possible verification. The algorithm still works correctly — it is just a single-step search.</p>
+        </div></div>
+        <div class="we-step"><div class="we-num">E3</div><div class="we-content">
+          <h4>Overlapping matches</h4>
+          <p>Rabin-Karp finds ALL occurrences, including overlapping ones. For example, searching for "AA" in "AAAA" finds matches at s=0, 1, and 2. The tool's match chips will show all three positions.</p>
+        </div></div>
+        <div class="we-step"><div class="we-num">E4</div><div class="we-content">
+          <h4>No match anywhere</h4>
+          <p>Every window produces a hash mismatch (or spurious hit followed by failed verification). The match list stays empty. Load the "No match" preset to see this — every window is highlighted red.</p>
+        </div></div>
+        <div class="we-step"><div class="we-num">E5</div><div class="we-content">
+          <h4>Impact of base (d) and prime (q) choice</h4>
+          <p>A small prime (e.g., q = 7) causes many collisions and many spurious hits — the algorithm slows toward O(nm). A large prime (e.g., q = 1000003) minimises collisions but requires careful handling of large intermediate values. Try changing the q field in the tool and compare the spurious hit counter.</p>
+        </div></div>
+
+        <div class="sec-label" style="margin-bottom:0.4rem;margin-top:0.9rem;">When Rabin-Karp is the right choice</div>
+        <div class="concept-box green">
+          <h4>Use Rabin-Karp when...</h4>
+          <p>• You are searching for <strong>multiple patterns</strong> at once (e.g., 1000 spam phrases in an email — one pass, hash set lookup).<br/>
+          • The text is large but matches are rare — the hash filter eliminates almost all windows cheaply.<br/>
+          • Memory is constrained — O(1) space vs KMP's O(m) failure table.<br/>
+          • You need a simple implementation — Rabin-Karp is shorter and easier to code correctly than KMP.</p>
+        </div>
+        <div class="concept-box" style="margin-top:0.6rem;">
+          <h4>Do NOT use Rabin-Karp when...</h4>
+          <p>• You need a <strong>worst-case guarantee</strong> — adversarial inputs can degrade it to O(nm). Use KMP or Boyer-Moore instead.<br/>
+          • The alphabet is very small (e.g., binary strings) — collision rate is high with small alphabets unless q is very large.<br/>
+          • The pattern is extremely short (m = 1 or 2) — the rolling hash overhead is not worth it; a simple linear scan suffices.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="challenge-box">
+      <div class="challenge-box-title">Self-Study Challenges — Searching Role</div>
+      <ol>
+        <li>Load the <strong>"No match"</strong> preset. How many hash checks happen? How many character verifications? Why are they not equal?</li>
+        <li>Load <strong>"Multiple matches"</strong>. Count the true matches and the hash checks. For each true match, how many character verifications occurred? Does this match what you expect?</li>
+        <li>Set q = 7 and load <strong>"DNA motif"</strong>. Compare the spurious hit count with q = 101. What does this tell you about the relationship between prime size and collision rate?</li>
+        <li>Explain in your own words: why does removing the character verification step make the algorithm incorrect, even though it would make it faster?</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- CLO-3 SECTION -->
+  <div class="right-section num-section" id="clo3">
+    <span class="num-badge">Section 6 — CLO-3 · Design Paradigm</span>
+    <h2 class="ns-h2">Rolling Hash — Incremental Computation &amp; Design Correctness</h2>
+    <div class="prose">
+      <p>Rabin-Karp's design paradigm is <strong>incremental computation</strong> (a variant of the divide-and-conquer / sliding-window family). The key insight is: instead of recomputing the window hash from scratch at every shift (which costs O(m)), we exploit the structural relationship between adjacent windows.</p>
+    </div>
+
+    <div class="concept-box blue">
+      <h4>The rolling hash relationship</h4>
+      <p>Window at s: T[s], T[s+1], ..., T[s+m-1]<br/>
+      Window at s+1: T[s+1], T[s+2], ..., T[s+m]<br/>
+      The two windows share m-1 characters. The rolling formula reuses the previous hash, subtracts the contribution of the leaving character, and adds the entering character — all in O(1).</p>
+    </div>
+
+    <div class="fcard">
+<pre><span class="fc">// Naïve recomputation — O(m) per window</span>
+h_win = 0
+<span class="fk">for</span> j = 0 <span class="fk">to</span> m-1:
+    h_win = (h_win * d + T[s+j]) % q     <span class="fc">// m multiplications</span>
+
+<span class="fc">// Rolling update — O(1) per window</span>
+<span class="fc">// Remove leaving char, shift left, add entering char</span>
+h_win = (d * (h_win - T[s] * h_high) + T[s+m]) % q</pre>
+    </div>
+
+    <div class="prose">
+      <p>The rolling formula is correct because polynomial evaluation is linear: <code style="font-family:var(--mono);font-size:12px;background:var(--surface2);border:1px solid var(--border-soft);padding:1px 4px;border-radius:3px;color:var(--rose-dim);">d · (h − T[s] · d^(m-1))</code> shifts the polynomial left by one degree (equivalent to removing the highest-degree term and multiplying the rest by d), then adding <code style="font-family:var(--mono);font-size:12px;background:var(--surface2);border:1px solid var(--border-soft);padding:1px 4px;border-radius:3px;color:var(--rose-dim);">T[s+m]</code> appends the new term at degree 0.</p>
+      <p><strong>Comparison with a different approach:</strong> A Bloom-filter approach would use multiple hash functions to reduce false positives, but each update still requires recomputing multiple hashes. The rolling hash achieves a single O(1) update per window while maintaining the filtering benefit — making it strictly more efficient for single-pattern search.</p>
+    </div>
+
+    <div class="concept-box yellow">
+      <h4>Counterexample: Why naive recomputation fails at scale</h4>
+      <p>For n = 1,000,000 and m = 100, naive recomputation costs 100,000,000 multiplications per search. Rolling hash costs exactly 1 multiply + 2 add/subtracts per window. At scale, the difference is the boundary between a usable tool and an unusable one.</p>
+    </div>
+
+    <div class="card-grid">
+      <div class="card"><p class="card-lbl b">Paradigm</p><h4>Sliding Window</h4><p>Maintains a fixed-size window over the input, updating state incrementally rather than recomputing from scratch. O(1) amortized update is the hallmark of this paradigm.</p></div>
+      <div class="card"><p class="card-lbl p">Key insight</p><h4>Structural reuse</h4><p>Adjacent windows share m-1 characters. Exploiting this overlap reduces per-step cost from O(m) to O(1) — the same principle behind Kadane's algorithm and sliding-window maximum.</p></div>
+    </div>
+
+    <div class="coll-wrap" id="cwCorrectness" style="margin-top:0.8rem;">
+      <div class="collapsible-body">
+        <h3 class="ns-h3">Correctness Proof — Why Rabin-Karp Never Misses a Match</h3>
+        <div class="sec-label" style="margin-bottom:0.4rem;">Why is the algorithm always correct?</div>
+        <div class="prose">
+          <p>Correctness means: the algorithm reports a match at position s <em>if and only if</em> T[s..s+m-1] = P. We need to prove two things:</p>
+        </div>
+        <div class="we-step"><div class="we-num">→</div><div class="we-content">
+          <h4>No true match is ever missed</h4>
+          <p>Suppose T[s..s+m-1] = P (a true match exists). Since the hash function is deterministic, identical strings always produce identical hashes. Therefore h_win = h_pat. The condition <code style="font-family:var(--mono);background:var(--surface2);border:1px solid var(--border-soft);padding:1px 4px;border-radius:3px;color:var(--rose-dim);">h_win == h_pat</code> is satisfied, and we enter the character verification loop. Since the strings are identical, every character matches, and we correctly report a match. <strong>No true match is ever skipped.</strong></p>
+        </div></div>
+        <div class="we-step"><div class="we-num">→</div><div class="we-content">
+          <h4>No false match is ever reported</h4>
+          <p>Suppose h_win = h_pat but T[s..s+m-1] ≠ P (a spurious hit). The character verification loop will find a mismatch at some position j and terminate early without reporting a match. <strong>A match is only reported after every character is confirmed equal.</strong></p>
+        </div></div>
+        <div class="we-step"><div class="we-num">→</div><div class="we-content">
+          <h4>The rolling hash preserves correctness</h4>
+          <p>We must verify the rolling formula is mathematically equivalent to recomputing from scratch. Let h(s) = Σ T[s+j] × d^(m-1-j) mod q for j = 0..m-1. Then:<br/>
+          h(s+1) = Σ T[s+1+j] × d^(m-1-j) mod q<br/>
+          = (h(s) − T[s] × d^(m-1)) × d + T[s+m]  mod q<br/>
+          This is exactly the rolling formula. Every update is algebraically exact, so h_win always equals the correct hash of the current window.</p>
+        </div></div>
+
+        <div class="sec-label" style="margin-bottom:0.4rem;margin-top:0.9rem;">What breaks if you change the design?</div>
+        <div class="concept-box">
+          <h4>What if you skip character verification on hash matches?</h4>
+          <p>The algorithm becomes incorrect. Spurious hits would be reported as matches. You would get false positives — positions reported as matches where T[s..s+m-1] ≠ P. Character verification is not optional; it is what makes the algorithm correct despite collisions.</p>
+        </div>
+        <div class="concept-box yellow" style="margin-top:0.6rem;">
+          <h4>What if you do not use mod q?</h4>
+          <p>Intermediate hash values grow as d^m, which for d=256 and m=20 exceeds 10^48 — far beyond any integer type. Overflow causes wrap-around, producing wrong hash values and missing true matches. The mod operation is essential for correctness in finite-precision arithmetic.</p>
+        </div>
+        <div class="concept-box blue" style="margin-top:0.6rem;">
+          <h4>What if you recompute h_win from scratch each time instead of rolling?</h4>
+          <p>The algorithm remains <em>correct</em> but loses its efficiency. Each window would cost O(m) to hash, making the total O(nm) — the same as naive brute force. The rolling hash is the design decision that makes Rabin-Karp O(n+m) in the expected case. It is a performance optimisation, not a correctness requirement.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /col-right -->
+</div><!-- /main-layout -->
+
+  <!-- FINAL SECTION: COMMON MISTAKES + CHALLENGES -->
+  <div class="right-section num-section" id="sec7">
+    <span class="num-badge">Section 7 — Common Mistakes &amp; Self-Study Challenges</span>
+    <h2 class="ns-h2">What Goes Wrong — And How to Avoid It</h2>
+
+    <h3 class="ns-h3">The 5 Most Common Implementation Mistakes</h3>
+    <div class="mistake-box">
+      <h4>Mistake 1 — Forgetting mod q on every operation</h4>
+      <p>Every addition, multiplication, AND subtraction in the hash formula must be followed by <code style="font-family:var(--mono)">% q</code>. Without it, intermediate values grow exponentially (d<sup>m</sup> for d=256, m=30 exceeds 10<sup>72</sup>) and overflow any integer type silently.</p>
+    </div>
+    <div class="mistake-box">
+      <h4>Mistake 2 — Negative result from the rolling subtraction</h4>
+      <p>The expression <code style="font-family:var(--mono)">(h - T[s] * h_high) % q</code> can be negative in languages where % returns the sign of the dividend. Always use <code style="font-family:var(--mono)">((h - T[s]*h_high) % q + q) % q</code>.</p>
+    </div>
+    <div class="mistake-box">
+      <h4>Mistake 3 — Reporting a match on hash equality without verifying</h4>
+      <p>Never report a match just because h_win == h_pat. Hash collisions (spurious hits) are rare but real. Always perform the O(m) character-by-character verification before reporting. Skipping this makes the algorithm incorrect.</p>
+    </div>
+    <div class="mistake-box">
+      <h4>Mistake 4 — Computing h_high inside the loop</h4>
+      <p>h_high = d<sup>m-1</sup> mod q must be computed ONCE before the loop begins, not at every iteration. Computing it inside the loop adds O(m) cost per window, destroying the O(1) rolling update benefit.</p>
+    </div>
+    <div class="mistake-box">
+      <h4>Mistake 5 — Using a non-prime or too-small q</h4>
+      <p>A small q (e.g. q=7) causes many hash collisions, forcing character verification far too often and degrading performance toward O(nm). Always use a large prime (101, 1009, 1000003). Using a composite number as q does not evenly distribute hash values and increases the collision rate.</p>
+    </div>
+
+    <h3 class="ns-h3">Edge Cases Summary Table</h3>
+    <div style="overflow-x:auto;">
+    <table class="cmp-tbl">
+      <thead><tr><th>Edge Case</th><th>Input Example</th><th>Expected Output</th><th>How Algorithm Handles It</th></tr></thead>
+      <tbody>
+        <tr><td><strong>m > n</strong></td><td>T="AB", P="ABC"</td><td>No matches</td><td>Loop has zero iterations (n-m+1 = 0)</td></tr>
+        <tr><td><strong>m = n</strong></td><td>T="ABC", P="ABC"</td><td>Match at s=0</td><td>Exactly one window; one hash check</td></tr>
+        <tr><td><strong>Overlapping matches</strong></td><td>T="AAAA", P="AA"</td><td>s=0,1,2</td><td>Algorithm finds all; no position is skipped</td></tr>
+        <tr><td><strong>No match</strong></td><td>T="ABCDEFGHIJ", P="ZZZ"</td><td>No matches</td><td>All windows are hash mismatches (red in tool)</td></tr>
+        <tr><td><strong>All-A worst case</strong></td><td>T="AAAAAAAAAB", P="AAAB"</td><td>1 match at s=6</td><td>Every window is spurious; O(nm) comparisons</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <div class="challenge-box" style="margin-top:1.2rem;">
+      <div class="challenge-box-title">Final Self-Study Challenges — Test Your Full Understanding</div>
+      <ol>
+        <li>Without using the tool, trace by hand: T = <strong>"CBACBACBA"</strong>, P = <strong>"CBA"</strong>, d = 10, q = 11. Compute each window hash using the rolling formula and identify all matches. Then verify using the tool.</li>
+        <li>Suppose you need to search for 500 different spam phrases in a 10MB email. Compare the total cost of: (a) running Rabin-Karp 500 times, (b) running KMP 500 times, (c) using Rabin-Karp with a hash set of all 500 pattern hashes. Which approach is fastest and why?</li>
+        <li>Explain why Rabin-Karp has <strong>O(1) space</strong> while KMP needs <strong>O(m) space</strong>. What does KMP store that Rabin-Karp avoids storing? What does Rabin-Karp sacrifice by not storing it?</li>
+        <li>A student claims: "If I use q = 1 (mod 1), every hash equals 0, so every window is a spurious hit." Is this correct? What does this tell you about the minimum sensible value of q?</li>
+        <li>Modify the worked example from Section 3: keep T = "ABCABD" and P = "ABD" but change d = 2. Recompute every hash value. Does the match at s=3 still appear? Does a new spurious hit appear?</li>
+      </ol>
+    </div>
+  </div>
+
+<footer>BCS-309 Algorithms I &nbsp;·&nbsp; 20220001636 Fatima B &nbsp;·&nbsp; Midterm Exam Replacement &nbsp;·&nbsp; Spring 2026</footer>
+
+<!-- ═══════════════════════════════════════════════════════
+     JAVASCRIPT
+════════════════════════════════════════════════════ -->
+<script>
+// ── PRESETS ───────────────────────────────────────────────────────
+const PRESETS=[
+  {l:'Multiple matches',t:'AABAACAADAABAABA',p:'AABA'},
+  {l:'DNA motif',t:'ATCGATCGATCG',p:'ATCG'},
+  {l:'All-A spurious',t:'AAAAAAAAAB',p:'AAAB'},
+  {l:'Simple repeat',t:'ABCABCABC',p:'ABC'},
+  {l:'No match',t:'ABCDEFGHIJ',p:'ZZZ'},
+];
+(function(){
+  const r=document.getElementById('presetRow');
+  PRESETS.forEach(pr=>{
+    const b=document.createElement('button');
+    b.className='pbtn';b.textContent=pr.l;
+    b.onclick=()=>{
+      document.getElementById('tInput').value=pr.t;
+      document.getElementById('pInput').value=pr.p;
+    };r.appendChild(b);
+  });
+})();
+
+document.getElementById('speedSlider').oninput=function(){
+  document.getElementById('speedVal').textContent=parseFloat(this.value).toFixed(2)+'×';
+};
+
+// ── PSEUDOCODE ────────────────────────────────────────────────────
+const PLINES=[
+  {c:'<span class="pf">RabinKarp</span>(<span class="pv">T</span>,<span class="pv">P</span>,<span class="pv">d</span>,<span class="pv">q</span>):',tip:'Entry point. T=text, P=pattern, d=base, q=prime modulus.'},
+  {c:'  <span class="pv">h_high</span> ← d^(m-1) mod q',tip:'Precompute d^(m-1) mod q — needed to remove the leaving character during rolling update.'},
+  {c:'  <span class="pv">h_pat</span> ← hash(P)  <span class="pc">// O(m)</span>',tip:'Compute pattern hash once. This is the target we compare every window against.'},
+  {c:'  <span class="pv">h_win</span> ← hash(T[0..m-1])  <span class="pc">// O(m)</span>',tip:'Compute hash of first window. Only done once before the main loop.'},
+  {c:'  <span class="pk">for</span> s = 0 to n-m:',tip:'Main loop — slide the window from left to right across the text.'},
+  {c:'    <span class="pk">if</span> h_win == h_pat:  <span class="pc">// O(1)</span>',tip:'Fast hash comparison. If hashes differ, skip this window immediately — no character check needed.'},
+  {c:'      <span class="pk">if</span> T[s..s+m-1] == P:  <span class="pc">// O(m)</span>',tip:'Character-by-character verification. Only runs when hashes match — guards against spurious hits.'},
+  {c:'        report match at s',tip:'A true match is confirmed. Record position s.'},
+  {c:'    h_win ← roll(h_win,T[s],T[s+m])  <span class="pc">// O(1)</span>',tip:'Rolling hash update: remove T[s], shift, add T[s+m]. Constant time regardless of m.'},
+];
+function renderPseudo(){
+  const b=document.getElementById('pseudoBody');
+  b.innerHTML=PLINES.map((l,i)=>
+    `<div class="pline" id="pl${i}"><span class="ln">${i+1}</span><span class="code">${l.c}</span><div class="tooltip">${l.tip}</div></div>`
+  ).join('');
+}
+function hlPseudo(n){
+  PLINES.forEach((_,i)=>{
+    const el=document.getElementById('pl'+i);
+    if(el){
+      el.className='pline'+(i===n?' active':'');
+      if(i===n){const pb=document.getElementById('pseudoBody');if(pb&&el)pb.scrollTop=el.offsetTop-pb.clientHeight/2;}
+    }
+  });
+}
+renderPseudo();
+
+// ── ALGO ENGINE ───────────────────────────────────────────────────
+let steps=[],idx=0,timer=null,histLog=[];
+
+function hashStr(s,d,q,len){let h=0;for(let i=0;i<len;i++)h=(h*d+s.charCodeAt(i))%q;return h;}
+function rollH(h,out,inn,hh,d,q){h=((h-out.charCodeAt(0)*hh)%q+q)%q;return(h*d+inn.charCodeAt(0))%q;}
+function rng(a,b){const r=[];for(let i=a;i<b;i++)r.push(i);return r;}
+
+function buildSteps(){
+  resetAll(false);
+  const T=document.getElementById('tInput').value.toUpperCase().trim();
+  const P=document.getElementById('pInput').value.toUpperCase().trim();
+  const d=+document.getElementById('dInput').value||26;
+  const q=+document.getElementById('qInput').value||101;
+  const n=T.length,m=P.length;
+  if(!T||!P||m>n){
+    document.getElementById('explainBox').innerHTML='<strong>Error:</strong> Text and pattern required; pattern must not exceed text length.';
+    return;
+  }
+  document.getElementById('tLen').textContent=n;
+  document.getElementById('pLen').textContent=m;
+
+  let hh=1;for(let i=0;i<m-1;i++)hh=(hh*d)%q;
+  const hPat=hashStr(P,d,q,m);
+  let hWin=hashStr(T,d,q,m);
+  steps=[];
+
+  steps.push({type:'pre',hPat,hWin,shift:0,hl:{t:rng(0,m),p:[]},pseudo:2,
+    exp:`<strong>📐 Step 1 — Preprocessing (computing the hashes)</strong><br>
+Before the search begins, Rabin-Karp computes two things up front:<br>
+① <strong>Pattern hash h(P) = <span class="ew-hash">${hPat}</span></strong> — a single number that represents the entire pattern "<strong>${P}</strong>". This number is computed once and never changes.<br>
+② <strong>First window hash h(T[0..${m-1}]) = ${hWin}</strong> — the hash of the first ${m} characters of the text, the first window to compare against.<br>
+③ <strong>h_high = d^(m-1) mod q = ${hh}</strong> — a precomputed constant used to efficiently remove the leftmost character when rolling the window forward. This is what makes rolling O(1) instead of O(m).<br>
+<em>Why hashing?</em> Instead of comparing all ${m} characters of the pattern against every window one by one, we compare just two integers. If they don't match, we skip the window entirely — saving up to m character reads per position.`});
+
+  let hc=0,cc=0,sc=0;const found=[];
+
+  for(let s=0;s<=n-m;s++){
+    hc++;
+    if(hWin===hPat){
+      steps.push({type:'hash_hit',hPat,hWin,shift:s,hl:{t:rng(s,s+m),p:[]},pseudo:5,
+        exp:`<strong>🔍 Hash Comparison at shift s=${s} — <span class="ew-hash">MATCH!</span></strong><br>
+The current window is <strong>T[${s}..${s+m-1}] = "${T.slice(s,s+m)}"</strong>.<br>
+Window hash h_win = <strong>${hWin}</strong> &nbsp;==&nbsp; Pattern hash h_pat = <strong>${hPat}</strong> ✓<br>
+The two hash values are equal, which <em>might</em> mean the window equals the pattern — but we can't be 100% sure yet. Two different strings can sometimes produce the same hash (called a <strong>hash collision</strong>).<br>
+<em>Next:</em> We must verify by comparing characters one by one to confirm this is a real match and not a false alarm (spurious hit).`});
+      let ok=true;
+      for(let j=0;j<m;j++){
+        cc++;
+        const yes=T[s+j]===P[j];
+        if(!yes)ok=false;
+        steps.push({type:yes?'cv_ok':'cv_fail',hPat,hWin,shift:s,hl:{t:[s+j],p:[j]},pseudo:6,fail:!yes,
+          exp:yes
+            ?`<strong>✅ Character Verification — position j=${j} passes</strong><br>
+Comparing character ${j+1} of ${m}: T[${s+j}] = '<strong>${T[s+j]}</strong>' matches P[${j}] = '<strong>${P[j]}</strong>' ✓<br>
+${j+1 < m ? `Still need to check ${m-j-1} more character${m-j-1!==1?'s':''} before we can confirm a full match.` : `This was the last character — all ${m} characters matched!`}`
+            :`<strong>❌ Character Verification — position j=${j} FAILS</strong><br>
+Comparing character ${j+1} of ${m}: T[${s+j}] = '<strong>${T[s+j]}</strong>' ≠ P[${j}] = '<strong>${P[j]}</strong>'<br>
+<span class="ew-spurious">⚠ Spurious Hit!</span> The hashes were equal (both = ${hPat}), but the actual strings are different. This is a <strong>hash collision</strong> — two distinct strings happened to produce the same hash value.<br>
+<em>What happens now?</em> We discard this window and move on. Spurious hits are rare with a good hash function, but they do happen. The character check is exactly what catches them.`});
+        if(!yes)break;
+      }
+      if(ok){
+        found.push(s);
+        steps.push({type:'full_match',hPat,hWin,shift:s,hl:{t:rng(s,s+m),p:rng(0,m)},pseudo:7,matchAt:s,
+          exp:`<strong>🎉 Full Match Confirmed at shift s=${s}!</strong><br>
+T[${s}..${s+m-1}] = "<strong>${T.slice(s,s+m)}</strong>" equals pattern P = "<strong>${P}</strong>" — every one of the ${m} characters matched.<br>
+<em>How we got here:</em> The hash comparison flagged this window as a candidate, then character-by-character verification confirmed it's a genuine match (not a spurious hit).<br>
+Total matches found so far: <strong>${found.length}</strong>. The algorithm will keep sliding the window to find any remaining occurrences.`});
+      } else {sc++;steps[steps.length-1].spurious=true;}
+    } else {
+      steps.push({type:'hash_miss',hPat,hWin,shift:s,hl:{t:rng(s,s+m),p:[]},pseudo:5,
+        exp:`<strong>⏭ Hash Comparison at shift s=${s} — <span class="ew-miss">No Match</span></strong><br>
+The current window is <strong>T[${s}..${s+m-1}] = "${T.slice(s,s+m)}"</strong>.<br>
+Window hash h_win = <strong>${hWin}</strong> &nbsp;≠&nbsp; Pattern hash h_pat = <strong>${hPat}</strong><br>
+The hash values are different, so the window <em>cannot</em> equal the pattern — it is mathematically impossible for two strings to be identical while having different hash values. We can safely skip this window without reading any characters.<br>
+<em>This is Rabin-Karp's key advantage:</em> an entire ${m}-character comparison is replaced by a single integer comparison.`});
+    }
+    if(s<n-m){
+      const hO=hWin;
+      hWin=rollH(hWin,T[s],T[s+m],hh,d,q);
+      steps.push({type:'roll',hPat,hWin,hOld:hO,shift:s+1,hl:{t:rng(s+1,s+1+m),p:[]},pseudo:8,
+        formula:`(d·(${hO}-${T.charCodeAt(s)}·${hh})+${T.charCodeAt(s+m)}) mod ${q}`,
+        exp:`<strong>🔄 Rolling the Hash — sliding window from s=${s} to s=${s+1}</strong><br>
+Instead of recomputing the new window's hash from scratch (which would cost O(m)), Rabin-Karp <em>updates</em> the existing hash in O(1) by:<br>
+① <strong>Removing</strong> the character that left the window: '<strong>${T[s]}</strong>' (value ${T.charCodeAt(s)}) at position ${s}<br>
+② <strong>Adding</strong> the new character that entered the window: '<strong>${T[s+m]}</strong>' (value ${T.charCodeAt(s+m)}) at position ${s+m}<br>
+Formula: <code>(d · (h_old − T[${s}] · h_high) + T[${s+m}]) mod q</code><br>
+Result: old hash ${hO} → new hash <strong>${hWin}</strong><br>
+<em>New window:</em> T[${s+1}..${s+m}] = "<strong>${T.slice(s+1,s+m+1)}</strong>"`});
+    }
+  }
+  steps.push({type:'done',hPat,hWin:null,shift:-1,hl:{t:[],p:[]},pseudo:-1,
+    exp:`<strong>✅ Algorithm Complete!</strong><br>
+Rabin-Karp has scanned all ${n-m+1} possible window positions in text T = "<strong>${T}</strong>".<br>
+<strong>Results:</strong> Found <strong>${found.length}</strong> match${found.length!==1?'es':''} ${found.length ? `at position${found.length!==1?'s':''}: ${found.map(x=>`s = <strong>${x}</strong>`).join(', ')}` : '— pattern not found in text'}.<br>
+<strong>Statistics:</strong> ${hc} hash comparisons, ${cc} character verifications, ${sc} spurious hit${sc!==1?'s':''}.<br>
+<em>Key takeaway:</em> Only windows where the hash matched required character verification. Every hash miss (${hc - (found.length + sc)} of them) was rejected instantly using just one integer comparison.`});
+
+  idx=0;
+  renderTape('textTape',T,m,false);
+  renderTape('patTape',P,m,true);
+  document.getElementById('stStep').textContent=`0 / ${steps.length}`;
+  document.getElementById('stStatus').textContent='Ready';
+  document.getElementById('btnStep').disabled=false;
+  document.getElementById('btnPlay').disabled=false;
+  document.getElementById('hmPat').textContent=hPat;
+  document.getElementById('explainBox').innerHTML=`<strong>${steps.length} steps</strong> built for n=${n}, m=${m}. Click <strong>Step</strong> or <strong>Play</strong>.`;
+  document.getElementById('vizExplainBox').innerHTML=`<strong>${steps.length} steps ready.</strong> Click <strong>Step ▶</strong> or <strong>Play ▶▶</strong> to begin — this box will explain each step in plain English.`;
+}
+
+// ── APPLY STEP ────────────────────────────────────────────────────
+function doStep(){
+  if(idx>=steps.length)return;
+  applyStep(steps[idx]);idx++;
+  if(idx>=steps.length){document.getElementById('btnStep').disabled=true;document.getElementById('btnPlay').disabled=true;pausePlay();}
+}
+
+function applyStep(st){
+  document.getElementById('stStep').textContent=`${idx+1} / ${steps.length}`;
+  const sm={pre:'Preprocessing',hash_hit:'Hash Match',hash_miss:'Hash Mismatch',
+    cv_ok:'Verifying',cv_fail:'Spurious Hit',full_match:'Match Found',roll:'Rolling Hash',done:'Complete'};
+  document.getElementById('stStatus').textContent=sm[st.type]||st.type;
+
+  // hash meter
+  document.getElementById('hmPat').textContent=st.hPat;
+  if(st.hWin!=null){
+    document.getElementById('hmWin').textContent=st.hWin;
+    const eq=st.hPat===st.hWin;
+    const el=document.getElementById('hmEq');
+    el.textContent=eq?'Yes':'No';
+    el.className='hm-val '+(eq?'hm-eq-yes':'hm-eq-no');
+  } else {
+    document.getElementById('hmWin').textContent='—';
+    document.getElementById('hmEq').textContent='—';
+    document.getElementById('hmEq').className='hm-val';
+    document.getElementById('hmEq').style.color='var(--text-dim)';
+  }
+  document.getElementById('hmFormula').textContent=st.formula||'—';
+  document.getElementById('shiftLbl').textContent=st.shift>=0?st.shift:'—';
+
+  // tapes
+  document.getElementById('textTape').querySelectorAll('.tc-box').forEach((b,i)=>{
+    b.className='tc-box';
+    if(st.hl.t.includes(i)){
+      if(st.type==='full_match')b.classList.add('s-match');
+      else if(st.type==='hash_hit')b.classList.add('s-hash-hit');
+      else if(st.type==='hash_miss')b.classList.add('s-miss');
+      else if(st.type==='cv_ok')b.classList.add('s-hash-hit');
+      else if(st.type==='cv_fail')b.classList.add('s-spurious');
+      else if(st.type==='roll')b.classList.add('s-window');
+      else b.classList.add('s-window');
+    } else b.classList.add('s-normal');
+  });
+  document.getElementById('patTape').querySelectorAll('.tc-box').forEach((b,i)=>{
+    b.className='tc-box';
+    if(st.hl.p.includes(i)){
+      if(st.type==='full_match')b.classList.add('s-match');
+      else if(st.type==='cv_fail')b.classList.add('s-spurious');
+      else b.classList.add('s-hash-hit');
+    } else b.classList.add('s-normal');
+  });
+
+  // explain + pseudo
+  document.getElementById('explainBox').innerHTML=st.exp;
+  document.getElementById('vizExplainBox').innerHTML=st.exp;
+  hlPseudo(st.pseudo);
+
+  // cumulative stats
+  let hc=0,cc=0,sc=0,mc=0;
+  for(let i=0;i<=idx&&i<steps.length;i++){
+    const s=steps[i];
+    if(s.type==='hash_hit'||s.type==='hash_miss')hc++;
+    if(s.type==='cv_ok'||s.type==='cv_fail')cc++;
+    if(s.spurious)sc++;
+    if(s.type==='full_match')mc++;
+  }
+  document.getElementById('stHash').textContent=hc;
+  document.getElementById('stChar').textContent=cc;
+  document.getElementById('stSpur').textContent=sc;
+  document.getElementById('stMatch').textContent=mc;
+
+  // match chips
+  const chips=[];
+  for(let i=0;i<=idx&&i<steps.length;i++)
+    if(steps[i].type==='full_match'&&steps[i].matchAt!=null)chips.push(steps[i].matchAt);
+  document.getElementById('matchChips').innerHTML=chips.length
+    ?chips.map(p=>`<span class="mchip">s = ${p}</span>`).join('')
+    :'<span class="no-match">None yet</span>';
+
+  // history
+  const desc={pre:'Preprocess',hash_hit:`Hash match @ s=${st.shift}`,
+    hash_miss:`Hash miss @ s=${st.shift}`,cv_ok:'Char verified',
+    cv_fail:'Spurious hit',full_match:`Match @ s=${st.shift}`,
+    roll:`Roll → s=${st.shift}`,done:'Done'};
+  const cls=st.type==='full_match'?'hr-match':st.type==='cv_fail'?'hr-spurious':st.type==='hash_miss'?'hr-miss':'';
+  histLog.push({step:idx,shift:st.shift>=0?st.shift:'—',desc:desc[st.type]||st.type,cls,snapIdx:idx-1});
+  if(histLog.length>30)histLog.shift();
+  renderHist();
+}
+
+function renderHist(){
+  const hb=document.getElementById('histBody');
+  hb.innerHTML=histLog.map((h,i)=>
+    `<div class="hrow ${h.cls}${i===histLog.length-1?' hr-current':''}" onclick="jumpToStep(${h.snapIdx})">
+      <span class="hc">${h.step}</span><span class="hc">${h.shift}</span><span class="hc">${h.desc}</span>
+    </div>`
+  ).join('');
+  hb.scrollTop=hb.scrollHeight;
+}
+
+function jumpToStep(target){
+  if(target<0||target>=steps.length)return;
+  pausePlay();
+  // rebuild fresh state up to target
+  const T=document.getElementById('tInput').value.toUpperCase().trim();
+  const P=document.getElementById('pInput').value.toUpperCase().trim();
+  const m=P.length;
+  renderTape('textTape',T,m,false);
+  renderTape('patTape',P,m,true);
+  idx=0;
+  // replay silently
+  for(let i=0;i<=target;i++){applyStep(steps[i]);idx=i+1;}
+  document.getElementById('btnStep').disabled=idx>=steps.length;
+  document.getElementById('btnPlay').disabled=idx>=steps.length;
+}
+
+// ── RENDER TAPES ─────────────────────────────────────────────────
+function renderTape(id,str){
+  const el=document.getElementById(id);
+  el.innerHTML=str.split('').map((c,i)=>
+    `<div class="tc"><span class="tc-idx">${i}</span><div class="tc-box s-normal">${c}</div></div>`
+  ).join('');
+}
+
+// ── PLAY / PAUSE ──────────────────────────────────────────────────
+function startPlay(){
+  if(idx>=steps.length)return;
+  document.getElementById('btnPlay').disabled=true;
+  document.getElementById('btnPause').disabled=false;
+  document.getElementById('btnStep').disabled=true;
+  document.getElementById('stStatus').textContent='Playing';
+  function tick(){
+    if(idx>=steps.length){pausePlay();return;}
+    doStep();
+    timer=setTimeout(tick,750/parseFloat(document.getElementById('speedSlider').value));
+  }tick();
+}
+function pausePlay(){
+  clearTimeout(timer);timer=null;
+  document.getElementById('btnPlay').disabled=idx>=steps.length;
+  document.getElementById('btnPause').disabled=true;
+  document.getElementById('btnStep').disabled=idx>=steps.length;
+  if(idx<steps.length)document.getElementById('stStatus').textContent='Paused';
+}
+function resetAll(hard){
+  pausePlay();steps=[];idx=0;histLog=[];
+  ['stHash','stChar','stSpur','stMatch'].forEach(id=>document.getElementById(id).textContent='0');
+  document.getElementById('stStep').textContent='0 / 0';
+  document.getElementById('stStatus').textContent='Idle';
+  ['hmPat','hmWin','hmEq','hmFormula','shiftLbl'].forEach(id=>document.getElementById(id).textContent='—');
+  document.getElementById('hmEq').className='hm-val';
+  document.getElementById('hmEq').style.color='var(--text-dim)';
+  document.getElementById('textTape').innerHTML='';
+  document.getElementById('patTape').innerHTML='';
+  document.getElementById('tLen').textContent='0';
+  document.getElementById('pLen').textContent='0';
+  document.getElementById('matchChips').innerHTML='<span class="no-match">None yet</span>';
+  document.getElementById('histBody').innerHTML='<div class="hrow"><span class="hc">—</span><span class="hc">—</span><span class="hc">No steps yet.</span></div>';
+  document.getElementById('explainBox').innerHTML='Click <strong>Build Steps</strong>, then <strong>Step</strong> or <strong>Play</strong>.';
+  document.getElementById('vizExplainBox').innerHTML='Click a <strong>Preset</strong>, then <strong>Build Steps</strong>, then <strong>Step ▶</strong> or <strong>Play ▶▶</strong>.<br>This box will explain every single step of the algorithm in plain English as it runs.';
+  document.getElementById('btnStep').disabled=true;
+  document.getElementById('btnPlay').disabled=true;
+  document.getElementById('btnPause').disabled=true;
+  renderPseudo();
+}
+
+// ── COLLAPSIBLES ──────────────────────────────────────────────────
+function toggleColl(id){
+  document.getElementById(id).classList.toggle('collapsed');
+}
+
+// ── GROWTH CHART (pure SVG) ───────────────────────────────────────
+function drawChart(){
+  const n=+document.getElementById('nSlider').value;
+  const m=+document.getElementById('mSlider').value;
+  document.getElementById('nVal').textContent=n;
+  document.getElementById('mVal').textContent=m;
+
+  const W=600,H=220,PAD={l:48,r:16,t:12,b:30};
+  const pts=30;
+  const ns=Array.from({length:pts},(_,i)=>Math.round((i+1)*n/pts));
+
+  // compute op counts (relative, scaled to fit chart)
+  const nm_vals=ns.map(x=>x*m);
+  const nplm_vals=ns.map(x=>x+m);
+  const n_vals=ns.map(x=>x);
+  const maxV=Math.max(...nm_vals);
+  const scaleY=v=>(H-PAD.t-PAD.b)*(1-v/maxV)+PAD.t;
+  const scaleX=i=>PAD.l+(i/(pts-1))*(W-PAD.l-PAD.r);
+
+  function polyline(vals,color,dash){
+    const pts2=vals.map((v,i)=>`${scaleX(i).toFixed(1)},${scaleY(v).toFixed(1)}`).join(' ');
+    return `<polyline points="${pts2}" fill="none" stroke="${color}" stroke-width="2" stroke-dasharray="${dash||'none'}"/>`;
+  }
+  function axisLabel(x,y,txt){return `<text x="${x}" y="${y}" fill="#5a3040" font-size="10" font-family="DM Mono,monospace" text-anchor="middle">${txt}</text>`;}
+
+  // axes
+  let svg=``;
+  // gridlines
+  for(let i=0;i<=4;i++){
+    const y=PAD.t+(H-PAD.t-PAD.b)*i/4;
+    svg+=`<line x1="${PAD.l}" y1="${y.toFixed(1)}" x2="${W-PAD.r}" y2="${y.toFixed(1)}" stroke="#ddd5c6" stroke-width="1"/>`;
+  }
+  // x ticks
+  [0,0.25,0.5,0.75,1].forEach(f=>{
+    const x=PAD.l+f*(W-PAD.l-PAD.r);
+    const nv=Math.round(f*n);
+    svg+=`<line x1="${x.toFixed(1)}" y1="${PAD.t}" x2="${x.toFixed(1)}" y2="${H-PAD.b}" stroke="#ddd5c6" stroke-width="1"/>`;
+    svg+=axisLabel(x.toFixed(1),(H-PAD.b+14).toFixed(1),nv);
+  });
+
+  svg+=polyline(nm_vals,'#e86060');
+  svg+=polyline(n_vals,'#48c888','6,3');
+  svg+=polyline(nplm_vals,'#60a8e0','2,2');
+
+  // axis labels
+  svg+=`<text x="${(PAD.l/2-4).toFixed(0)}" y="${(H/2).toFixed(0)}" fill="#806068" font-size="9" font-family="DM Mono,monospace" text-anchor="middle" transform="rotate(-90,${(PAD.l/2-4).toFixed(0)},${(H/2).toFixed(0)})">Operations</text>`;
+  svg+=`<text x="${(W/2).toFixed(0)}" y="${H.toFixed(0)}" fill="#806068" font-size="9" font-family="DM Mono,monospace" text-anchor="middle">n (input size)</text>`;
+
+  document.getElementById('growthSvg').innerHTML=svg;
+}
+drawChart();
+document.getElementById('nSlider').oninput=drawChart;
+document.getElementById('mSlider').oninput=drawChart;
+</script>
+</body>
+</html>
