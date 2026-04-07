@@ -625,7 +625,9 @@ Matches   →  shift s = 0, s = 9, s = 12</pre></div>
     <p class="ns-p">For n=1,000,000 and m=100 that is 100 million character comparisons. Rabin-Karp reduces this to approximately O(n + m) by replacing character-by-character comparisons with a single integer comparison using a <strong>hash</strong>.</p>
 
     <h3 class="ns-h3">What is a Hash Function?</h3>
-    <p><strong>NewHash = (d × (OldHash − leadingChar × d<sup>m-1</sup>) + nextChar) mod q</strong></p>
+  <p style="text-align: center;">
+  <strong>NewHash = (d × (OldHash − leadingChar × d<sup>m-1</sup>) + nextChar) mod q</strong>
+</p>
     <p class="ns-p">A hash function converts a string (or any data) into a single number called a <strong>hash value</strong>. A good hash function has two key properties:</p>
     <ul class="ns-ul">
       <li><strong>Consistency:</strong> The same string always produces the same hash value.</li>
